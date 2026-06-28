@@ -14,9 +14,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
-        name: "そば記録",
-        short_name: "そば記録",
-        description: "食べたそばを記録するアプリ",
+        name: "きろくノート（そば・体重）",
+        short_name: "きろくノート",
+        description: "そばと体重を記録するアプリ",
         lang: "ja",
         theme_color: "#5a7d4f",
         background_color: "#f6f1e7",

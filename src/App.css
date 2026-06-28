@@ -855,3 +855,475 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   ランチャー（最初の選択画面）
+   ============================================================ */
+.launcher {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+  background: linear-gradient(160deg, #f6f1e7 0%, #eef3e9 100%);
+}
+.launcher__inner {
+  width: 100%;
+  max-width: 460px;
+}
+.launcher__title {
+  text-align: center;
+  font-size: 30px;
+  margin: 0 0 4px;
+  letter-spacing: 0.04em;
+}
+.launcher__sub {
+  text-align: center;
+  color: var(--ink-soft);
+  margin: 0 0 28px;
+  font-size: 15px;
+}
+.launch-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 0.12s;
+  font: inherit;
+  color: inherit;
+}
+.launch-card:active {
+  transform: scale(0.98);
+}
+.launch-card__icon {
+  font-size: 40px;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+}
+.launch-card--soba .launch-card__icon {
+  background: #eef3e9;
+}
+.launch-card--weight .launch-card__icon {
+  background: #e8f1f8;
+}
+.launch-card__body {
+  flex: 1;
+  min-width: 0;
+}
+.launch-card__name {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.launch-card__desc {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.launch-card__arrow {
+  font-size: 22px;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+.launcher__foot {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 20px;
+}
+
+/* ============================================================
+   共通パネル
+   ============================================================ */
+.card-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.panel__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ============================================================
+   ボトムナビ
+   ============================================================ */
+.app--hasnav {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+.bottomnav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  background: rgba(255, 253, 248, 0.96);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+  max-width: 600px;
+  margin: 0 auto;
+}
+.bottomnav__btn {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 8px 0 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--ink-soft);
+}
+.bottomnav__icon {
+  font-size: 20px;
+  line-height: 1;
+  filter: grayscale(0.4);
+  opacity: 0.7;
+}
+.bottomnav__label {
+  font-size: 11px;
+}
+.bottomnav__btn--active {
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+.bottomnav__btn--active .bottomnav__icon {
+  filter: none;
+  opacity: 1;
+}
+.fab--abovenav {
+  bottom: calc(80px + env(safe-area-inset-bottom));
+}
+.hero__home {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ============================================================
+   チャート（自作SVG）
+   ============================================================ */
+.chart {
+  display: block;
+}
+.chart__ylabel,
+.chart__xlabel {
+  font-size: 9px;
+  fill: var(--ink-soft);
+}
+.chart__barval {
+  font-size: 10px;
+  fill: var(--ink-soft);
+  font-weight: 700;
+}
+.chart__bubble {
+  font-size: 10px;
+  fill: #fff;
+}
+.chart-empty {
+  text-align: center;
+  color: var(--ink-soft);
+  padding: 30px 0;
+  font-size: 14px;
+}
+
+/* ============================================================
+   地図
+   ============================================================ */
+.mapview {
+  margin-bottom: 8px;
+}
+.mapview__canvas {
+  width: 100%;
+  height: 60vh;
+  min-height: 360px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  z-index: 0;
+}
+.mapview__hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 10px 2px;
+  line-height: 1.6;
+}
+.mapview__count {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 8px 2px;
+}
+.map-popup-link {
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+/* ============================================================
+   体重アプリ
+   ============================================================ */
+.weight {
+  --accent: #3f86c4;
+  --accent-dark: #2f6699;
+}
+.wheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 16px;
+}
+.wheader__home {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wheader__title {
+  font-size: 20px;
+  margin: 0;
+}
+.wheader__spacer {
+  width: 86px;
+}
+.wsummary {
+  background: linear-gradient(160deg, #3f86c4, #2f6699);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 22px;
+  margin-bottom: 16px;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(63, 134, 196, 0.35);
+}
+.wsummary__main {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+.wsummary__value {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+}
+.wsummary__unit {
+  font-size: 20px;
+  opacity: 0.9;
+}
+.wsummary__date {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 6px;
+}
+.wsummary__deltas {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.delta {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 8px 14px;
+}
+.delta__label {
+  display: block;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.delta__value {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+.stepper__btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent-dark);
+  font-size: 26px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.stepper__value {
+  flex: 1;
+  text-align: center;
+  font-size: 32px;
+  font-weight: 800;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px;
+  color: var(--ink);
+  -moz-appearance: textfield;
+}
+.stepper__value::-webkit-outer-spin-button,
+.stepper__value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.stepper__quick {
+  display: flex;
+  gap: 8px;
+}
+.stepper__quick button {
+  flex: 1;
+  padding: 9px 0;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.wsave {
+  width: 100%;
+  margin-top: 16px;
+  background: var(--accent);
+}
+.wsave--done {
+  background: #2e9e5b;
+}
+
+.range-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--surface-2);
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.range-tabs__btn {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 8px 0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.range-tabs__btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+.wrange-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.whistory {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.whistory__row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.whistory__row:last-child {
+  border-bottom: none;
+}
+.whistory__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 13px 4px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+}
+.whistory__date {
+  font-size: 13px;
+  color: var(--ink-soft);
+  width: 92px;
+  flex-shrink: 0;
+}
+.whistory__weight {
+  font-size: 16px;
+  font-weight: 700;
+}
+.whistory__delta {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.whistory__delta--up {
+  color: #c2503a;
+  background: #f7e7e2;
+}
+.whistory__delta--down {
+  color: #2e9e5b;
+  background: #e3f3e9;
+}
+.whistory__delta--flat {
+  color: var(--ink-soft);
+  background: var(--surface-2);
+}
+.whistory__note {
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.whistory__del {
+  border: none;
+  background: none;
+  font-size: 18px;
+  padding: 8px;
+  cursor: pointer;
+  opacity: 0.6;
+}
