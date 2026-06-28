@@ -5,12 +5,14 @@ import { createId, loadRecords, saveRecords } from "./storage";
 import { RecordCard } from "./components/RecordCard";
 import { RecordForm } from "./components/RecordForm";
 import { RecordDetail } from "./components/RecordDetail";
+import { DataView } from "./components/DataView";
 
 type View =
   | { name: "list" }
   | { name: "create" }
   | { name: "detail"; id: string }
-  | { name: "edit"; id: string };
+  | { name: "edit"; id: string }
+  | { name: "data" };
 
 type Filter = "all" | Temperature;
 
@@ -103,6 +105,19 @@ export default function App() {
     );
   }
 
+  if (view.name === "data") {
+    return (
+      <Shell>
+        <DataView
+          records={records}
+          onBack={() => setView({ name: "list" })}
+          onImported={(next) => persist(next)}
+          onSelect={(id) => setView({ name: "detail", id })}
+        />
+      </Shell>
+    );
+  }
+
   if (view.name === "detail") {
     const rec = findRecord(view.id);
     if (!rec) return <Shell>{notFound(() => setView({ name: "list" }))}</Shell>;
@@ -122,7 +137,16 @@ export default function App() {
   return (
     <Shell>
       <header className="hero">
-        <h1 className="hero__title">🍜 そば記録</h1>
+        <div className="hero__bar">
+          <h1 className="hero__title">🍜 そば記録</h1>
+          <button
+            type="button"
+            className="hero__data-btn"
+            onClick={() => setView({ name: "data" })}
+          >
+            📋 データ
+          </button>
+        </div>
         <p className="hero__sub">食べたそばを記録しよう</p>
         <div className="stats">
           <Stat label="記録数" value={`${stats.count}`} />
