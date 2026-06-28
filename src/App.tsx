@@ -1,15 +1,15 @@
 import { useState } from "react";
 import "./App.css";
 import SobaApp from "./SobaApp";
-import WeightApp from "./WeightApp";
+import LifeApp from "./LifeApp";
 
-type Mode = "home" | "soba" | "weight";
+type Mode = "home" | "soba" | "life";
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("home");
 
   if (mode === "soba") return <SobaApp onHome={() => setMode("home")} />;
-  if (mode === "weight") return <WeightApp onHome={() => setMode("home")} />;
+  if (mode === "life") return <LifeApp onHome={() => setMode("home")} />;
 
   return (
     <div className="launcher">
@@ -35,13 +35,13 @@ export default function App() {
         <button
           type="button"
           className="launch-card launch-card--weight"
-          onClick={() => setMode("weight")}
+          onClick={() => setMode("life")}
         >
-          <span className="launch-card__icon">⚖️</span>
+          <span className="launch-card__icon">📔</span>
           <span className="launch-card__body">
-            <span className="launch-card__name">体重記録</span>
+            <span className="launch-card__name">生活記録</span>
             <span className="launch-card__desc">
-              0.1kg単位で記録・変化グラフを期間で確認
+              体重・食事（朝昼夜おやつ・外食）・勉強時間をまとめて記録
             </span>
           </span>
           <span className="launch-card__arrow">→</span>
