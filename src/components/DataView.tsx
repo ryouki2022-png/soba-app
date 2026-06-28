@@ -59,6 +59,7 @@ export function DataView({
                 <th>日付</th>
                 <th>店名</th>
                 <th>メニュー</th>
+                <th>トッピング</th>
                 <th>温度</th>
                 <th>こし</th>
                 <th>値段</th>
@@ -70,7 +71,8 @@ export function DataView({
                 <tr key={r.id} onClick={() => onSelect(r.id)}>
                   <td>{r.date}</td>
                   <td className="data__shop">{r.shopName}</td>
-                  <td>{r.menuName || "-"}</td>
+                  <td>{r.menuItems.length ? r.menuItems.join("・") : "-"}</td>
+                  <td>{r.toppings.length ? r.toppings.join("・") : "-"}</td>
                   <td>{r.temperature === "hot" ? "🔥" : "❄️"}</td>
                   <td>{"●".repeat(r.koshi)}</td>
                   <td>{r.price != null ? `¥${r.price.toLocaleString()}` : "-"}</td>

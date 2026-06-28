@@ -64,11 +64,15 @@ export default function App() {
     return records.filter((r) => {
       if (filter !== "all" && r.temperature !== filter) return false;
       if (!q) return true;
-      return (
-        r.shopName.toLowerCase().includes(q) ||
-        r.menuName.toLowerCase().includes(q) ||
-        r.memo.toLowerCase().includes(q)
-      );
+      const haystack = [
+        r.shopName,
+        ...r.menuItems,
+        ...r.toppings,
+        r.memo,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
     });
   }, [records, query, filter]);
 

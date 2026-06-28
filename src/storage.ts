@@ -9,12 +9,34 @@ export function loadRecords(): SobaRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
-    const data = JSON.parse(raw) as SobaRecord[];
+    const data = JSON.parse(raw);
     if (!Array.isArray(data)) return [];
-    return data.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return data
+      .map(migrate)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   } catch {
     return [];
   }
+}
+
+/**
+ * 旧バージョンのレコードを現行スキーマへ移行する。
+ * 旧: menuName（単一文字列）→ 新: menuItems（配列）＋ toppings（配列）
+ */
+export function migrate(r: Record<string, unknown>): SobaRecord {
+  const legacyMenu = typeof r.menuName === "string" ? r.menuName.trim() : "";
+  const menuItems = Array.isArray(r.menuItems)
+    ? (r.menuItems as string[])
+    : legacyMenu
+      ? [legacyMenu]
+      : [];
+  const toppings = Array.isArray(r.toppings) ? (r.toppings as string[]) : [];
+  // menuName は残さない（移行後は menuItems を使う）
+  const { menuName: _omit, ...rest } = r as Record<string, unknown> & {
+    menuName?: string;
+  };
+  void _omit;
+  return { ...(rest as unknown as SobaRecord), menuItems, toppings };
 }
 
 /** 全記録を保存する */

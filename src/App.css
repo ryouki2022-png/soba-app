@@ -33,7 +33,11 @@ body {
 .app {
   max-width: 600px;
   margin: 0 auto;
-  padding: 0 16px 96px;
+  /* 全画面（ホーム画面アプリ）起動時にノッチやステータスバーへ
+     めり込まないよう、セーフエリア分の余白を確保する */
+  padding: env(safe-area-inset-top) calc(16px + env(safe-area-inset-right))
+    calc(96px + env(safe-area-inset-bottom))
+    calc(16px + env(safe-area-inset-left));
   min-height: 100vh;
 }
 
@@ -475,6 +479,81 @@ body {
   font-size: 12px;
   color: var(--accent-dark);
   margin-top: 6px;
+}
+
+/* タグ入力（メニュー・トッピング） */
+.taginput__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 6px 5px 12px;
+  font-size: 14px;
+}
+.tag__remove {
+  border: none;
+  background: rgba(58, 49, 40, 0.12);
+  color: var(--ink);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 14px;
+}
+.taginput__row {
+  display: flex;
+  gap: 8px;
+}
+.taginput__row .field__input {
+  flex: 1;
+}
+.taginput__add {
+  flex-shrink: 0;
+  width: 48px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+/* 詳細のチップ表示 */
+.detail__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.detail__chips-label {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.chip-tag {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 14px;
+}
+.chip-tag--menu {
+  background: #eef3e9;
+  border-color: #d7e3cd;
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+.card__toppings {
+  color: var(--ink-soft);
 }
 
 /* セグメント（温かい/冷たい） */

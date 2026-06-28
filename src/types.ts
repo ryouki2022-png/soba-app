@@ -8,8 +8,10 @@ export interface SobaRecord {
   id: string;
   /** 店名 */
   shopName: string;
-  /** 食べたメニュー名（例: ざるそば、鴨南蛮） */
-  menuName: string;
+  /** 食べたメニュー（複数可。例: ざるそば、鴨南蛮） */
+  menuItems: string[];
+  /** トッピング（複数可。例: 海苔、温泉卵、ねぎ） */
+  toppings: string[];
   /** Google マップのリンク */
   mapsUrl: string;
   /** 住所（マップリンクから取得できた場合） */

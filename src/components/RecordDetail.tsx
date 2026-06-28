@@ -35,7 +35,25 @@ export function RecordDetail({
         </span>
       </div>
 
-      {record.menuName && <p className="detail__menu">{record.menuName}</p>}
+      {record.menuItems.length > 0 && (
+        <div className="detail__chips">
+          {record.menuItems.map((m) => (
+            <span key={m} className="chip-tag chip-tag--menu">
+              {m}
+            </span>
+          ))}
+        </div>
+      )}
+      {record.toppings.length > 0 && (
+        <div className="detail__chips">
+          <span className="detail__chips-label">トッピング:</span>
+          {record.toppings.map((t) => (
+            <span key={t} className="chip-tag">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
 
       <dl className="detail__grid">
         <div className="detail__row">

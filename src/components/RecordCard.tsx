@@ -28,7 +28,17 @@ export function RecordCard({ record, onClick }: RecordCardProps) {
           <h3 className="card__shop">{record.shopName}</h3>
           <span className="card__rating">{"★".repeat(record.rating)}</span>
         </div>
-        {record.menuName && <p className="card__menu">{record.menuName}</p>}
+        {(record.menuItems.length > 0 || record.toppings.length > 0) && (
+          <p className="card__menu">
+            {record.menuItems.join("・")}
+            {record.toppings.length > 0 && (
+              <span className="card__toppings">
+                {record.menuItems.length > 0 ? " + " : ""}
+                {record.toppings.join("・")}
+              </span>
+            )}
+          </p>
+        )}
         <div className="card__meta">
           {record.price != null && (
             <span className="card__price">¥{record.price.toLocaleString()}</span>

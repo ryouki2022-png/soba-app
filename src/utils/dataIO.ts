@@ -47,6 +47,7 @@ export function exportCsv(records: SobaRecord[]): void {
     "日付",
     "店名",
     "メニュー",
+    "トッピング",
     "温度",
     "こし",
     "値段",
@@ -58,7 +59,8 @@ export function exportCsv(records: SobaRecord[]): void {
     [
       r.date,
       r.shopName,
-      r.menuName,
+      r.menuItems.join(" / "),
+      r.toppings.join(" / "),
       tempLabel(r.temperature),
       r.koshi,
       r.price,
@@ -89,12 +91,20 @@ export function parseImportedJson(text: string): SobaRecord[] {
     .map((r) => normalize(r as Partial<SobaRecord>));
 }
 
-/** 欠けたフィールドを既定値で補う */
-function normalize(r: Partial<SobaRecord>): SobaRecord {
+/** 欠けたフィールドを既定値で補う（旧 menuName も吸収） */
+function normalize(r: Partial<SobaRecord> & { menuName?: string }): SobaRecord {
+  const legacyMenu = typeof r.menuName === "string" ? r.menuName.trim() : "";
+  const menuItems = Array.isArray(r.menuItems)
+    ? r.menuItems
+    : legacyMenu
+      ? [legacyMenu]
+      : [];
+  const toppings = Array.isArray(r.toppings) ? r.toppings : [];
   return {
     id: r.id as string,
     shopName: r.shopName ?? "",
-    menuName: r.menuName ?? "",
+    menuItems,
+    toppings,
     mapsUrl: r.mapsUrl ?? "",
     address: r.address ?? "",
     lat: r.lat ?? null,

@@ -6,6 +6,7 @@ import { parseMapsUrl } from "../utils/maps";
 import { fileToResizedDataUrl } from "../utils/image";
 import { findStore, normalizeName } from "../utils/stores";
 import { StarRating } from "./StarRating";
+import { TagInput } from "./TagInput";
 
 interface RecordFormProps {
   /** 編集時の初期値、または新規時の一部プリフィル */
@@ -24,10 +25,25 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** 重複を除いた値の配列（大文字小文字を無視） */
+function uniqueValues(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of items) {
+    const k = v.toLowerCase();
+    if (v && !seen.has(k)) {
+      seen.add(k);
+      out.push(v);
+    }
+  }
+  return out;
+}
+
 function emptyDraft(): SobaDraft {
   return {
     shopName: "",
-    menuName: "",
+    menuItems: [],
+    toppings: [],
     mapsUrl: "",
     address: "",
     lat: null,
@@ -76,6 +92,16 @@ export function RecordForm({
   const matchedStore = useMemo(
     () => findStore(pastRecords, draft.shopName),
     [pastRecords, draft.shopName],
+  );
+
+  // 過去に入力したメニュー・トッピングの候補（入力補完用）
+  const menuSuggestions = useMemo(
+    () => uniqueValues(pastRecords.flatMap((r) => r.menuItems)),
+    [pastRecords],
+  );
+  const toppingSuggestions = useMemo(
+    () => uniqueValues(pastRecords.flatMap((r) => r.toppings)),
+    [pastRecords],
   );
 
   // 店名入力後：過去のマップリンクを引き継ぐ
@@ -195,7 +221,9 @@ export function RecordForm({
               <li key={v.id}>
                 <span className="past-visits__date">{v.date}</span>
                 <span>{v.temperature === "hot" ? "🔥" : "❄️"}</span>
-                <span className="past-visits__menu">{v.menuName || "（メニュー未記入）"}</span>
+                <span className="past-visits__menu">
+                  {v.menuItems.length ? v.menuItems.join("・") : "（メニュー未記入）"}
+                </span>
                 <span className="past-visits__rating">{"★".repeat(v.rating)}</span>
               </li>
             ))}
@@ -203,17 +231,29 @@ export function RecordForm({
         </div>
       )}
 
-      {/* メニュー名 */}
-      <label className="field">
-        <span className="field__label">メニュー</span>
-        <input
-          type="text"
-          className="field__input"
-          placeholder="例: ざるそば、鴨南蛮"
-          value={draft.menuName}
-          onChange={(e) => set("menuName", e.target.value)}
+      {/* メニュー（複数可） */}
+      <div className="field">
+        <span className="field__label">メニュー（複数OK）</span>
+        <TagInput
+          values={draft.menuItems}
+          onChange={(v) => set("menuItems", v)}
+          placeholder="例: ざるそば（入力して＋）"
+          suggestions={menuSuggestions}
+          listId="menu-suggestions"
         />
-      </label>
+      </div>
+
+      {/* トッピング（複数可） */}
+      <div className="field">
+        <span className="field__label">トッピング（複数OK）</span>
+        <TagInput
+          values={draft.toppings}
+          onChange={(v) => set("toppings", v)}
+          placeholder="例: 海苔、温泉卵（入力して＋）"
+          suggestions={toppingSuggestions}
+          listId="topping-suggestions"
+        />
+      </div>
 
       {/* 温かい / 冷たい */}
       <div className="field">
