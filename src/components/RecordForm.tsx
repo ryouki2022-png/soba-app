@@ -1,13 +1,21 @@
 // そばの記録を新規作成・編集するフォーム
 
-import { useState } from "react";
-import type { SobaDraft, Temperature } from "../types";
+import { useMemo, useState } from "react";
+import type { SobaDraft, SobaRecord, Temperature } from "../types";
 import { parseMapsUrl } from "../utils/maps";
 import { fileToResizedDataUrl } from "../utils/image";
+import { findStore, normalizeName } from "../utils/stores";
 import { StarRating } from "./StarRating";
 
 interface RecordFormProps {
-  initial?: SobaDraft;
+  /** 編集時の初期値、または新規時の一部プリフィル */
+  initial?: Partial<SobaDraft>;
+  /** 編集モードか（見出しの切り替え用） */
+  isEdit?: boolean;
+  /** 過去の記録（店名から過去訪問を引くため） */
+  allRecords?: SobaRecord[];
+  /** 過去訪問の照合から除外する記録ID（編集中の自分自身） */
+  excludeId?: string;
   onSubmit: (draft: SobaDraft) => void;
   onCancel: () => void;
 }
@@ -34,12 +42,53 @@ function emptyDraft(): SobaDraft {
   };
 }
 
-export function RecordForm({ initial, onSubmit, onCancel }: RecordFormProps) {
-  const [draft, setDraft] = useState<SobaDraft>(initial ?? emptyDraft());
+export function RecordForm({
+  initial,
+  isEdit = false,
+  allRecords = [],
+  excludeId,
+  onSubmit,
+  onCancel,
+}: RecordFormProps) {
+  const [draft, setDraft] = useState<SobaDraft>({ ...emptyDraft(), ...initial });
   const [mapsHint, setMapsHint] = useState<string>("");
 
   const set = <K extends keyof SobaDraft>(key: K, value: SobaDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
+
+  // 自分自身を除いた過去の記録
+  const pastRecords = useMemo(
+    () => allRecords.filter((r) => r.id !== excludeId),
+    [allRecords, excludeId],
+  );
+
+  // 既存の店名候補（入力補完用）
+  const storeNames = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const r of pastRecords) {
+      const key = normalizeName(r.shopName);
+      if (key && !names.has(key)) names.set(key, r.shopName);
+    }
+    return [...names.values()];
+  }, [pastRecords]);
+
+  // 入力中の店名に一致する過去のお店
+  const matchedStore = useMemo(
+    () => findStore(pastRecords, draft.shopName),
+    [pastRecords, draft.shopName],
+  );
+
+  // 店名入力後：過去のマップリンクを引き継ぐ
+  const handleShopBlur = () => {
+    const store = findStore(pastRecords, draft.shopName);
+    if (!store) return;
+    setDraft((d) => ({
+      ...d,
+      mapsUrl: d.mapsUrl || store.mapsUrl,
+      lat: d.lat ?? store.lat,
+      lng: d.lng ?? store.lng,
+    }));
+  };
 
   const handleMapsBlur = () => {
     if (!draft.mapsUrl) {
@@ -90,7 +139,7 @@ export function RecordForm({ initial, onSubmit, onCancel }: RecordFormProps) {
 
   return (
     <form className="form" onSubmit={handleSubmit}>
-      <h2 className="form__title">{initial ? "記録を編集" : "そばを記録"}</h2>
+      <h2 className="form__title">{isEdit ? "記録を編集" : "そばを記録"}</h2>
 
       {/* Google マップリンク */}
       <label className="field">
@@ -116,9 +165,43 @@ export function RecordForm({ initial, onSubmit, onCancel }: RecordFormProps) {
           placeholder="例: 神田まつや"
           value={draft.shopName}
           onChange={(e) => set("shopName", e.target.value)}
+          onBlur={handleShopBlur}
+          list="store-names"
           required
         />
+        {storeNames.length > 0 && (
+          <datalist id="store-names">
+            {storeNames.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        )}
       </label>
+
+      {/* 過去の訪問ヒント（同じ店に2回目以降） */}
+      {matchedStore && (
+        <div className="past-visits">
+          <div className="past-visits__head">
+            🏪 この店は過去 {matchedStore.count} 回 ・ 平均 ★
+            {matchedStore.avgRating.toFixed(1)}
+            {matchedStore.mapsUrl && draft.mapsUrl === matchedStore.mapsUrl && (
+              <span className="past-visits__autofill">
+                （前回のマップリンクを引き継ぎました）
+              </span>
+            )}
+          </div>
+          <ul className="past-visits__list">
+            {matchedStore.visits.slice(0, 3).map((v) => (
+              <li key={v.id}>
+                <span className="past-visits__date">{v.date}</span>
+                <span>{v.temperature === "hot" ? "🔥" : "❄️"}</span>
+                <span className="past-visits__menu">{v.menuName || "（メニュー未記入）"}</span>
+                <span className="past-visits__rating">{"★".repeat(v.rating)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* メニュー名 */}
       <label className="field">
