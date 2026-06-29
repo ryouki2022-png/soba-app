@@ -71,10 +71,17 @@ export async function requestPersistentStorage(): Promise<void> {
   }
 }
 
-function lsParse<T>(key: string): T[] | null {
+function lsGetRaw(key: string): string | null {
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function lsParse<T>(raw: string | null): T[] | null {
+  if (raw == null) return null;
+  try {
     const data = JSON.parse(raw);
     return Array.isArray(data) ? (data as T[]) : null;
   } catch {
@@ -93,25 +100,36 @@ function lsWrite(key: string, data: unknown): boolean {
 
 /**
  * 配列データを読み込む。localStorage と IndexedDB を突き合わせ、
- * 件数の多い方（＝より新しい/完全な方）を採用し、両方を同期する。
- * これにより、片方が消えても自動復元される。
+ * 件数の多い方（＝より新しい/完全な方）を採用し、足りない側だけ補う。
+ *
+ * 安全装置:
+ *   - 空配列で既存データを上書きしない（消失防止）
+ *   - localStorage が「壊れて読めない」場合は上書きせず温存
+ *     （IndexedDB 側が無事ならそれを返す）
  */
 export async function loadArray<T>(key: string): Promise<T[]> {
-  const ls = lsParse<T>(key);
-  const idb = await idbGet<T[]>(key);
-  const idbArr = Array.isArray(idb) ? idb : null;
+  const lsRaw = lsGetRaw(key);
+  const ls = lsParse<T>(lsRaw);
+  const lsCorrupt = lsRaw != null && ls === null; // 文字列はあるが parse 不能
+  const idb0 = await idbGet<T[]>(key);
+  const idb = Array.isArray(idb0) ? idb0 : null;
 
   let chosen: T[];
-  if (ls && idbArr) {
-    // 通常は同じ。書き込みに失敗した側が少なくなるので、多い方を採用。
-    chosen = ls.length >= idbArr.length ? ls : idbArr;
+  if (ls && idb) {
+    chosen = ls.length >= idb.length ? ls : idb;
   } else {
-    chosen = ls ?? idbArr ?? [];
+    chosen = ls ?? idb ?? [];
   }
 
-  // 両方を採用データに揃える（＝消えていた側を復元）
-  lsWrite(key, chosen);
-  void idbSet(key, chosen);
+  // 復元・同期は「採用データが空でない」ときだけ。空で上書きして消すことは絶対にしない。
+  // 採用データ(chosen)が非空なら、それは無事なデータなので、壊れている側も含めて修復する。
+  if (chosen.length > 0) {
+    const lsCount = ls ? ls.length : 0;
+    if (lsCorrupt || lsCount < chosen.length) lsWrite(key, chosen);
+    const idbCount = idb ? idb.length : 0;
+    if (idbCount < chosen.length) void idbSet(key, chosen);
+  }
+
   return chosen;
 }
 
