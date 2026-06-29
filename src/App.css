@@ -1480,3 +1480,24 @@ body {
   background: #fdeee7;
   color: #b8512f;
 }
+
+/* ランチャーのバックアップ操作 */
+.launcher__backup {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+.launcher__bkbtn {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.launcher__bkbtn:active {
+  transform: scale(0.98);
+}

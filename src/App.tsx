@@ -1,12 +1,35 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import SobaApp from "./SobaApp";
 import LifeApp from "./LifeApp";
+import { requestPersistentStorage } from "./lib/store";
+import { exportAllData, importAllData } from "./lib/backup";
 
 type Mode = "home" | "soba" | "life";
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("home");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // 保存領域を消されにくくするようブラウザに依頼（データ消失対策）
+  useEffect(() => {
+    requestPersistentStorage();
+  }, []);
+
+  const handleRestore = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const result = await importAllData(await file.text());
+      alert(
+        `復元しました。\nそば：+${result.sobaAdded}件（計${result.total.soba}）\n生活：+${result.lifeAdded}件（計${result.total.life}）`,
+      );
+    } catch (e) {
+      console.error(e);
+      alert("復元に失敗しました。正しいバックアップファイル（.json）を選んでください。");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   if (mode === "soba") return <SobaApp onHome={() => setMode("home")} />;
   if (mode === "life") return <LifeApp onHome={() => setMode("home")} />;
@@ -47,7 +70,29 @@ export default function App() {
           <span className="launch-card__arrow">→</span>
         </button>
 
-        <p className="launcher__foot">データはこの端末内にのみ保存されます</p>
+        <div className="launcher__backup">
+          <button type="button" className="launcher__bkbtn" onClick={() => exportAllData()}>
+            💾 バックアップ
+          </button>
+          <button
+            type="button"
+            className="launcher__bkbtn"
+            onClick={() => fileRef.current?.click()}
+          >
+            📥 復元
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(e) => handleRestore(e.target.files?.[0])}
+          />
+        </div>
+        <p className="launcher__foot">
+          データはこの端末内に保存されます。機種変更や万一の消失に備え、
+          ときどき「バックアップ」で保存しておくと安心です。
+        </p>
       </div>
     </div>
   );

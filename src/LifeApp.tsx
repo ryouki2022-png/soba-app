@@ -6,6 +6,7 @@ import { loadRecords as loadSoba } from "./storage";
 import type { SobaRecord } from "./types";
 import { LineChart } from "./charts/LineChart";
 import { BarChart } from "./charts/BarChart";
+import { daysAgoStr, todayStr } from "./lib/date";
 
 interface LifeAppProps {
   onHome: () => void;
@@ -22,7 +23,7 @@ const RANGES: { key: Range; label: string }[] = [
 ];
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayStr();
 }
 function mmdd(date: string): string {
   const [, m, d] = date.split("-");
@@ -53,8 +54,12 @@ export default function LifeApp({ onHome }: LifeAppProps) {
   const [justSaved, setJustSaved] = useState(false);
 
   useEffect(() => {
-    setRecords(loadLife());
-    setSoba(loadSoba());
+    let alive = true;
+    loadLife().then((r) => alive && setRecords(r));
+    loadSoba().then((r) => alive && setSoba(r));
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // 日付に対応する既存記録を下書きへ読み込む
@@ -345,10 +350,7 @@ function GraphTab({
 }) {
   const filtered = useMemo(() => {
     if (range === "all") return records;
-    const days = Number(range);
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    const fromStr = from.toISOString().slice(0, 10);
+    const fromStr = daysAgoStr(Number(range));
     return records.filter((r) => r.date >= fromStr);
   }, [records, range]);
 

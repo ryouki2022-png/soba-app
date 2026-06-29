@@ -1,22 +1,22 @@
-// localStorage を使った記録の永続化（プロトタイプ用の簡易バックエンド）
+// 記録の永続化。耐久性の高い二重保存レイヤー（store.ts）を利用する。
 
 import type { SobaRecord } from "./types";
+import { loadArray, saveArray } from "./lib/store";
 
 const STORAGE_KEY = "soba-records-v1";
 
-/** 全記録を読み込む（新しい順） */
-export function loadRecords(): SobaRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data)) return [];
-    return data
-      .map(migrate)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  } catch {
-    return [];
+/** 全記録を読み込む（新しい順）。1件壊れていても他は失わない。 */
+export async function loadRecords(): Promise<SobaRecord[]> {
+  const data = await loadArray<Record<string, unknown>>(STORAGE_KEY);
+  const out: SobaRecord[] = [];
+  for (const r of data) {
+    try {
+      if (r && typeof r === "object") out.push(migrate(r));
+    } catch {
+      // 壊れた1件はスキップ（全体は失わない）
+    }
   }
+  return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 /**
@@ -39,13 +39,9 @@ export function migrate(r: Record<string, unknown>): SobaRecord {
   return { ...(rest as unknown as SobaRecord), menuItems, toppings };
 }
 
-/** 全記録を保存する */
-export function saveRecords(records: SobaRecord[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-  } catch (e) {
-    console.error("記録の保存に失敗しました", e);
-  }
+/** 全記録を保存する（localStorage と IndexedDB の両方へ） */
+export async function saveRecords(records: SobaRecord[]): Promise<void> {
+  await saveArray(STORAGE_KEY, records);
 }
 
 /** 一意なIDを生成する */

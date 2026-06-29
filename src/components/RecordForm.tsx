@@ -5,6 +5,7 @@ import type { SobaDraft, SobaRecord, Temperature } from "../types";
 import { parseMapsUrl } from "../utils/maps";
 import { fileToResizedDataUrl } from "../utils/image";
 import { findStore, normalizeName } from "../utils/stores";
+import { todayStr } from "../lib/date";
 import { StarRating } from "./StarRating";
 import { TagInput } from "./TagInput";
 
@@ -22,7 +23,7 @@ interface RecordFormProps {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayStr();
 }
 
 /** 重複を除いた値の配列（大文字小文字を無視） */

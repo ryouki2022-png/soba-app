@@ -34,7 +34,13 @@ export default function SobaApp({ onHome }: SobaAppProps) {
   const [tab, setTab] = useState<Tab>("home");
 
   useEffect(() => {
-    setRecords(loadRecords());
+    let alive = true;
+    loadRecords().then((r) => {
+      if (alive) setRecords(r);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const persist = (next: SobaRecord[]) => {
