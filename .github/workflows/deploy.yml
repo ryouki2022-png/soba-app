@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - claude/soba-tracking-app-87oyqb
+      - claude/sober-weight-tracker-improvements-krt5r1
   # 手動実行も可能にする
   workflow_dispatch:
 
