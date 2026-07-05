@@ -972,7 +972,8 @@ body {
    ボトムナビ
    ============================================================ */
 .app--hasnav {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  /* ボトムナビ＋浮きボタン（＋）に最後の項目が隠れないだけの余白 */
+  padding-bottom: calc(160px + env(safe-area-inset-bottom));
 }
 .bottomnav {
   position: fixed;
@@ -1500,4 +1501,201 @@ body {
 }
 .launcher__bkbtn:active {
   transform: scale(0.98);
+}
+
+/* ===== 位置情報の設定（記録フォーム） ===== */
+.loc-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+}
+.loc-status--ok {
+  background: #eaf2e6;
+  border-color: var(--accent);
+}
+.loc-status__text {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.loc-status--ok .loc-status__text {
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+.loc-status__clear {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.loc-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.loc-actions__btn {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 14px;
+}
+.loc-actions__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.loc-url {
+  margin-top: 4px;
+}
+.geo-results {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.geo-results li + li {
+  border-top: 1px solid var(--line);
+}
+.geo-results__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.geo-results__item:active {
+  background: var(--surface-2);
+}
+.geo-results__name {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.geo-results__addr {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ===== マップ下のお店一覧 ===== */
+.map-list {
+  margin-top: 14px;
+}
+.map-list__title {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.map-list__row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.map-list__main {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.map-list__main:active {
+  background: var(--surface-2);
+}
+.map-list__name {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-list__meta {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 3px;
+}
+.map-list__detail {
+  border: none;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.map-list__row--noloc {
+  opacity: 0.85;
+}
+.map-list__badge {
+  display: inline-block;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  margin-right: 6px;
+  color: var(--ink-soft);
+}
+.map-list__hint {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 6px 2px;
+  line-height: 1.6;
+}
+
+/* マップリンクの補足（URL未登録時のフォールバック表示） */
+.btn--map__note {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-left: 4px;
+}
+
+/* ===== 生活記録: 体重の前回比 ===== */
+.weight-prev {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 8px 2px 0;
+}
+.weight-prev__delta {
+  font-weight: 700;
+}
+.weight-prev__delta--up {
+  color: var(--hot);
+}
+.weight-prev__delta--down {
+  color: var(--cold);
+}
+
+/* 生活記録: 履歴のCSV書き出し */
+.lhistory__export {
+  margin: 14px 0;
+  text-align: center;
 }

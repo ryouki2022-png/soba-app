@@ -1,6 +1,7 @@
 // 1件の記録の詳細表示
 
 import type { SobaRecord } from "../types";
+import { buildMapsLink } from "../utils/maps";
 import { StarRating } from "./StarRating";
 
 interface RecordDetailProps {
@@ -16,6 +17,8 @@ export function RecordDetail({
   onDelete,
   onBack,
 }: RecordDetailProps) {
+  // URL未登録でも座標や店名からGoogleマップを開けるようにする
+  const mapsLink = buildMapsLink(record);
   return (
     <div className="detail">
       <button type="button" className="detail__back" onClick={onBack}>
@@ -82,14 +85,19 @@ export function RecordDetail({
 
       {record.memo && <p className="detail__memo">{record.memo}</p>}
 
-      {record.mapsUrl && (
+      {mapsLink && (
         <a
           className="btn btn--map"
-          href={record.mapsUrl}
+          href={mapsLink}
           target="_blank"
           rel="noreferrer"
         >
           📍 Google マップで開く
+          {!record.mapsUrl && (
+            <span className="btn--map__note">
+              {record.lat != null ? "（登録した位置）" : "（店名で検索）"}
+            </span>
+          )}
         </a>
       )}
 

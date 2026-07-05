@@ -4,12 +4,16 @@ import SobaApp from "./SobaApp";
 import LifeApp from "./LifeApp";
 import { requestPersistentStorage } from "./lib/store";
 import { exportAllData, importAllData } from "./lib/backup";
+import { useBackClose } from "./lib/backstack";
 
 type Mode = "home" | "soba" | "life";
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("home");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // スマホの「戻る」ボタンでアプリが閉じずにホームへ戻れるように
+  useBackClose(mode !== "home", () => setMode("home"));
 
   // 保存領域を消されにくくするようブラウザに依頼（データ消失対策）
   useEffect(() => {

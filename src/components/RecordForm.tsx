@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { SobaDraft, SobaRecord, Temperature } from "../types";
-import { parseMapsUrl } from "../utils/maps";
+import { isShortMapsUrl, parseMapsUrl } from "../utils/maps";
+import { getCurrentPosition, searchPlace, type GeoPlace } from "../utils/geocode";
 import { fileToResizedDataUrl } from "../utils/image";
 import { findStore, normalizeName } from "../utils/stores";
 import { todayStr } from "../lib/date";
@@ -70,6 +71,11 @@ export function RecordForm({
   const [draft, setDraft] = useState<SobaDraft>({ ...emptyDraft(), ...initial });
   const [mapsHint, setMapsHint] = useState<string>("");
 
+  // 店名からの場所検索（Nominatim）
+  const [geoResults, setGeoResults] = useState<GeoPlace[] | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoHint, setGeoHint] = useState("");
+
   const set = <K extends keyof SobaDraft>(key: K, value: SobaDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
@@ -105,7 +111,7 @@ export function RecordForm({
     [pastRecords],
   );
 
-  // 店名入力後：過去のマップリンクを引き継ぐ
+  // 店名入力後：過去のマップリンク・位置情報を引き継ぐ
   const handleShopBlur = () => {
     const store = findStore(pastRecords, draft.shopName);
     if (!store) return;
@@ -117,15 +123,25 @@ export function RecordForm({
     }));
   };
 
-  const handleMapsBlur = () => {
-    if (!draft.mapsUrl) {
+  // マップURLの解析。貼り付けた瞬間に反映されるよう onChange から呼ぶ
+  const applyMapsUrl = (url: string) => {
+    set("mapsUrl", url);
+    if (!url.trim()) {
       setMapsHint("");
       return;
     }
-    const parsed = parseMapsUrl(draft.mapsUrl);
+    if (isShortMapsUrl(url)) {
+      setMapsHint(
+        "短縮リンク（maps.app.goo.gl など）からは店名・位置を読み取れません。" +
+          "リンクはこのまま保存できます。位置情報は店名を入れて「🔎 場所を検索」で設定できます。",
+      );
+      return;
+    }
+    const parsed = parseMapsUrl(url);
     if (parsed.shopName || parsed.lat !== null) {
       setDraft((d) => ({
         ...d,
+        mapsUrl: url,
         // すでに店名が入っている場合は上書きしない
         shopName: d.shopName || parsed.shopName,
         address: parsed.address || d.address,
@@ -133,15 +149,76 @@ export function RecordForm({
         lng: parsed.lng ?? d.lng,
       }));
       setMapsHint(
-        parsed.shopName
-          ? `「${parsed.shopName}」を読み取りました`
-          : "位置情報を読み取りました",
+        parsed.shopName && parsed.lat !== null
+          ? `「${parsed.shopName}」と位置情報を読み取りました ✓`
+          : parsed.shopName
+            ? `「${parsed.shopName}」を読み取りました（位置情報なし）`
+            : "位置情報を読み取りました ✓",
       );
     } else {
       setMapsHint(
-        "このリンクからは店名を自動取得できませんでした（短縮URLなど）。店名を手入力してください。",
+        "このリンクからは情報を読み取れませんでした。店名を入れて「🔎 場所を検索」で位置を設定できます。",
       );
     }
+  };
+
+  // 店名で場所を検索（短縮URLしか無い場合の代替手段）
+  const handleGeoSearch = async () => {
+    const q = draft.shopName.trim();
+    if (!q) {
+      setGeoHint("先に店名を入力してください");
+      return;
+    }
+    setGeoLoading(true);
+    setGeoHint("");
+    setGeoResults(null);
+    try {
+      const results = await searchPlace(q);
+      if (results.length === 0) {
+        setGeoHint(
+          "見つかりませんでした。「店名 + 地名」（例: まつや 神田）で試すか、下の「現在地を使う」もどうぞ。",
+        );
+      } else {
+        setGeoResults(results);
+      }
+    } catch (e) {
+      console.error(e);
+      setGeoHint("検索できませんでした。通信環境を確認してもう一度お試しください。");
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  const pickGeoResult = (p: GeoPlace) => {
+    setDraft((d) => ({
+      ...d,
+      lat: p.lat,
+      lng: p.lng,
+      address: d.address || p.displayName,
+    }));
+    setGeoResults(null);
+    setGeoHint(`「${p.name}」の位置を設定しました ✓`);
+  };
+
+  // お店で記録するときにその場で位置を付けられるように
+  const handleUseCurrentLocation = async () => {
+    setGeoLoading(true);
+    setGeoHint("");
+    try {
+      const pos = await getCurrentPosition();
+      setDraft((d) => ({ ...d, lat: pos.lat, lng: pos.lng }));
+      setGeoResults(null);
+      setGeoHint("現在地を位置情報として設定しました ✓");
+    } catch (e) {
+      setGeoHint(e instanceof Error ? e.message : "現在地を取得できませんでした");
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  const clearLocation = () => {
+    setDraft((d) => ({ ...d, lat: null, lng: null }));
+    setGeoHint("");
   };
 
   const handlePhoto = async (file: File | undefined) => {
@@ -164,24 +241,11 @@ export function RecordForm({
     onSubmit({ ...draft, shopName: draft.shopName.trim() });
   };
 
+  const hasLocation = draft.lat != null && draft.lng != null;
+
   return (
     <form className="form" onSubmit={handleSubmit}>
       <h2 className="form__title">{isEdit ? "記録を編集" : "そばを記録"}</h2>
-
-      {/* Google マップリンク */}
-      <label className="field">
-        <span className="field__label">📍 Google マップのリンク</span>
-        <input
-          type="url"
-          className="field__input"
-          placeholder="https://maps.google.com/..."
-          value={draft.mapsUrl}
-          onChange={(e) => set("mapsUrl", e.target.value)}
-          onBlur={handleMapsBlur}
-          inputMode="url"
-        />
-        {mapsHint && <span className="field__hint">{mapsHint}</span>}
-      </label>
 
       {/* 店名 */}
       <label className="field">
@@ -231,6 +295,80 @@ export function RecordForm({
           </ul>
         </div>
       )}
+
+      {/* 場所・地図 */}
+      <div className="field">
+        <span className="field__label">📍 場所（マップに表示するための情報）</span>
+
+        {/* 位置情報のステータス */}
+        <div className={`loc-status${hasLocation ? " loc-status--ok" : ""}`}>
+          {hasLocation ? (
+            <>
+              <span className="loc-status__text">✓ 位置情報あり（マップにピンが立ちます）</span>
+              <button
+                type="button"
+                className="loc-status__clear"
+                onClick={clearLocation}
+              >
+                削除
+              </button>
+            </>
+          ) : (
+            <span className="loc-status__text">
+              位置情報なし — 下のどれかで設定できます
+            </span>
+          )}
+        </div>
+
+        <div className="loc-actions">
+          <button
+            type="button"
+            className="btn btn--ghost loc-actions__btn"
+            onClick={handleGeoSearch}
+            disabled={geoLoading}
+          >
+            {geoLoading ? "検索中…" : "🔎 店名で場所を検索"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost loc-actions__btn"
+            onClick={handleUseCurrentLocation}
+            disabled={geoLoading}
+          >
+            📍 現在地を使う
+          </button>
+        </div>
+        {geoHint && <span className="field__hint">{geoHint}</span>}
+
+        {/* 検索結果の候補 */}
+        {geoResults && geoResults.length > 0 && (
+          <ul className="geo-results">
+            {geoResults.map((p, i) => (
+              <li key={`${p.lat}-${p.lng}-${i}`}>
+                <button
+                  type="button"
+                  className="geo-results__item"
+                  onClick={() => pickGeoResult(p)}
+                >
+                  <span className="geo-results__name">{p.name}</span>
+                  <span className="geo-results__addr">{p.displayName}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Google マップリンク（任意） */}
+        <input
+          type="url"
+          className="field__input loc-url"
+          placeholder="Google マップのリンクを貼ると自動入力（任意）"
+          value={draft.mapsUrl}
+          onChange={(e) => applyMapsUrl(e.target.value)}
+          inputMode="url"
+        />
+        {mapsHint && <span className="field__hint">{mapsHint}</span>}
+      </div>
 
       {/* メニュー（複数可） */}
       <div className="field">

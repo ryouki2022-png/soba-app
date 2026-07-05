@@ -1,6 +1,7 @@
 // お店の詳細：集計＋その店で食べた全記録
 
 import type { StoreSummary } from "../utils/stores";
+import { buildMapsLink } from "../utils/maps";
 import { RecordCard } from "./RecordCard";
 
 interface StoreDetailProps {
@@ -24,10 +25,17 @@ export function StoreDetail({
   onSelectRecord,
   onAddVisit,
 }: StoreDetailProps) {
+  // URL未登録でも座標や店名からGoogleマップを開けるようにする
+  const mapsLink = buildMapsLink({
+    mapsUrl: store.mapsUrl,
+    shopName: store.name,
+    lat: store.lat,
+    lng: store.lng,
+  });
   return (
     <div className="detail">
       <button type="button" className="detail__back" onClick={onBack}>
-        ← お店一覧へ
+        ← 戻る
       </button>
 
       <h2 className="detail__shop">🏪 {store.name}</h2>
@@ -56,14 +64,19 @@ export function StoreDetail({
         {store.coldCount > 0 && <span>❄️ 冷たい {store.coldCount}回</span>}
       </div>
 
-      {store.mapsUrl && (
+      {mapsLink && (
         <a
           className="btn btn--map"
-          href={store.mapsUrl}
+          href={mapsLink}
           target="_blank"
           rel="noreferrer"
         >
           📍 Google マップで開く
+          {!store.mapsUrl && (
+            <span className="btn--map__note">
+              {store.lat != null ? "（登録した位置）" : "（店名で検索）"}
+            </span>
+          )}
         </a>
       )}
 

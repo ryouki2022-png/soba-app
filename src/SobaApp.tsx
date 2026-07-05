@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SobaDraft, SobaRecord, Temperature } from "./types";
 import { createId, loadRecords, saveRecords } from "./storage";
+import { useBackClose } from "./lib/backstack";
 import { groupByStore } from "./utils/stores";
 import { RecordCard } from "./components/RecordCard";
 import { RecordForm } from "./components/RecordForm";
@@ -32,6 +33,9 @@ export default function SobaApp({ onHome }: SobaAppProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [tab, setTab] = useState<Tab>("home");
+
+  // スマホの「戻る」ボタンで詳細・フォーム画面から一覧へ戻れるように
+  useBackClose(view.name !== "main", () => setView({ name: "main" }));
 
   useEffect(() => {
     let alive = true;
@@ -70,13 +74,19 @@ export default function SobaApp({ onHome }: SobaAppProps) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return records.filter((r) => {
+    const hit = records.filter((r) => {
       if (filter !== "all" && r.temperature !== filter) return false;
       if (!q) return true;
       const haystack = [r.shopName, ...r.menuItems, ...r.toppings, r.memo]
         .join(" ")
         .toLowerCase();
       return haystack.includes(q);
+    });
+    // 「食べた日」の新しい順（同日なら登録の新しい順）に並べる。
+    // 過去の日付をあとから記録しても、一覧の並びが正しくなる。
+    return hit.sort((a, b) => {
+      const d = b.date.localeCompare(a.date);
+      return d !== 0 ? d : b.createdAt.localeCompare(a.createdAt);
     });
   }, [records, query, filter]);
 
@@ -214,7 +224,10 @@ export default function SobaApp({ onHome }: SobaAppProps) {
           onSelect={(key) => setView({ name: "storeDetail", key })}
         />
       ) : tab === "map" ? (
-        <MapView records={records} onSelect={(id) => setView({ name: "detail", id })} />
+        <MapView
+          stores={stores}
+          onSelectStore={(key) => setView({ name: "storeDetail", key })}
+        />
       ) : tab === "graph" ? (
         <StatsView records={records} />
       ) : (
@@ -265,7 +278,8 @@ export default function SobaApp({ onHome }: SobaAppProps) {
         </>
       )}
 
-      {tab !== "graph" && (
+      {/* マップ・グラフでは一覧のボタンを隠してしまうため表示しない */}
+      {tab !== "graph" && tab !== "map" && (
         <button
           type="button"
           className="fab fab--abovenav"

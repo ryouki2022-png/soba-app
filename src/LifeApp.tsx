@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { LifeRecord, MealSlot } from "./life/types";
 import { MEAL_SLOTS, emptyMeals, outsideCount } from "./life/types";
 import { loadLife, roundWeight, saveLife, upsertLife } from "./life/storage";
+import { exportLifeCsv } from "./life/exportCsv";
 import { loadRecords as loadSoba } from "./storage";
 import type { SobaRecord } from "./types";
 import { LineChart } from "./charts/LineChart";
@@ -94,6 +95,13 @@ export default function LifeApp({ onHome }: LifeAppProps) {
     [soba, date],
   );
 
+  // 選択中の日より前の、最後に体重を記録した日（前回比の表示用）
+  const prevWeight = useMemo(() => {
+    const before = records.filter((r) => r.date < date && r.weight != null);
+    const last = before[before.length - 1];
+    return last ? { date: last.date, weight: last.weight as number } : null;
+  }, [records, date]);
+
   const handleSave = () => {
     const entry: LifeRecord = {
       date,
@@ -156,6 +164,7 @@ export default function LifeApp({ onHome }: LifeAppProps) {
           note={note}
           setNote={setNote}
           sobaOfDay={sobaOfDay}
+          prevWeight={prevWeight}
           justSaved={justSaved}
           onSave={handleSave}
         />
@@ -199,6 +208,7 @@ interface LogTabProps {
   note: string;
   setNote: (s: string) => void;
   sobaOfDay: SobaRecord[];
+  prevWeight: { date: string; weight: number } | null;
   justSaved: boolean;
   onSave: () => void;
 }
@@ -247,6 +257,14 @@ function LogTab(p: LogTabProps) {
           <button type="button" onClick={() => p.adjustWeight(0.5)}>+0.5</button>
           <button type="button" onClick={() => p.adjustWeight(1)}>+1.0</button>
         </div>
+        {p.prevWeight && (
+          <p className="weight-prev">
+            前回（{mmdd(p.prevWeight.date)}）{fmtKg(p.prevWeight.weight)}kg
+            {p.weight != null && (
+              <WeightDelta delta={roundWeight(p.weight - p.prevWeight.weight)} />
+            )}
+          </p>
+        )}
       </section>
 
       {/* 食事 */}
@@ -333,6 +351,20 @@ function LogTab(p: LogTabProps) {
         {p.justSaved ? "✓ 保存しました" : "この日の記録を保存"}
       </button>
     </>
+  );
+}
+
+/** 前回比の増減を色つきで表示 */
+function WeightDelta({ delta }: { delta: number }) {
+  if (delta === 0) return <span className="weight-prev__delta">（±0）</span>;
+  const sign = delta > 0 ? "+" : "";
+  return (
+    <span
+      className={`weight-prev__delta weight-prev__delta--${delta > 0 ? "up" : "down"}`}
+    >
+      （{sign}
+      {fmtKg(delta)}kg）
+    </span>
   );
 }
 
@@ -454,6 +486,7 @@ function HistoryTab({
   }
 
   return (
+    <>
     <ul className="lhistory">
       {history.map((r) => {
         const out = outsideCount(r) + (sobaDates.has(r.date) ? 1 : 0);
@@ -483,5 +516,15 @@ function HistoryTab({
         );
       })}
     </ul>
+    <div className="lhistory__export">
+      <button
+        type="button"
+        className="btn btn--ghost"
+        onClick={() => exportLifeCsv(records)}
+      >
+        📄 CSVで書き出し
+      </button>
+    </div>
+    </>
   );
 }
