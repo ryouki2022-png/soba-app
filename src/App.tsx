@@ -4,20 +4,25 @@ import SobaApp from "./SobaApp";
 import LifeApp from "./LifeApp";
 import { requestPersistentStorage } from "./lib/store";
 import { exportAllData, importAllData } from "./lib/backup";
+import { initSync, subscribeSync, getSyncState } from "./lib/sync";
+import { SyncSettings } from "./components/SyncSettings";
 import { useBackClose } from "./lib/backstack";
 
-type Mode = "home" | "soba" | "life";
+type Mode = "home" | "soba" | "life" | "sync";
 
 export default function App() {
   const [mode, setMode] = useState<Mode>("home");
+  const [syncOn, setSyncOn] = useState(getSyncState().configured);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // スマホの「戻る」ボタンでアプリが閉じずにホームへ戻れるように
   useBackClose(mode !== "home", () => setMode("home"));
 
-  // 保存領域を消されにくくするようブラウザに依頼（データ消失対策）
+  // 保存領域を消されにくくするようブラウザに依頼＋GitHub同期の開始
   useEffect(() => {
     requestPersistentStorage();
+    void initSync();
+    return subscribeSync((s) => setSyncOn(s.configured));
   }, []);
 
   const handleRestore = async (file: File | undefined) => {
@@ -37,6 +42,13 @@ export default function App() {
 
   if (mode === "soba") return <SobaApp onHome={() => setMode("home")} />;
   if (mode === "life") return <LifeApp onHome={() => setMode("home")} />;
+  if (mode === "sync") {
+    return (
+      <div className="app">
+        <SyncSettings onBack={() => setMode("home")} />
+      </div>
+    );
+  }
 
   return (
     <div className="launcher">
@@ -74,6 +86,16 @@ export default function App() {
           <span className="launch-card__arrow">→</span>
         </button>
 
+        <button
+          type="button"
+          className={`sync-banner${syncOn ? " sync-banner--on" : ""}`}
+          onClick={() => setMode("sync")}
+        >
+          {syncOn
+            ? "☁️ 同期オン — データは GitHub に自動保存されています"
+            : "⚠️ 同期がオフです — タップして設定するとデータが消えなくなります"}
+        </button>
+
         <div className="launcher__backup">
           <button type="button" className="launcher__bkbtn" onClick={() => exportAllData()}>
             💾 バックアップ
@@ -85,6 +107,13 @@ export default function App() {
           >
             📥 復元
           </button>
+          <button
+            type="button"
+            className="launcher__bkbtn"
+            onClick={() => setMode("sync")}
+          >
+            🛟 データ救出
+          </button>
           <input
             ref={fileRef}
             type="file"
@@ -94,8 +123,8 @@ export default function App() {
           />
         </div>
         <p className="launcher__foot">
-          データはこの端末内に保存されます。機種変更や万一の消失に備え、
-          ときどき「バックアップ」で保存しておくと安心です。
+          「☁️ 同期」をオンにすると、記録は自動で GitHub に保存され、
+          端末側のデータが消えても次に開いたとき自動で復元されます。
         </p>
       </div>
     </div>

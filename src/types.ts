@@ -35,7 +35,9 @@ export interface SobaRecord {
   date: string;
   /** 作成日時（ISO） */
   createdAt: string;
+  /** 最終更新日時（ISO）。編集・復元のたびに更新される（同期のマージ判定用） */
+  updatedAt?: string;
 }
 
 /** 新規作成・編集フォームで扱う入力値 */
-export type SobaDraft = Omit<SobaRecord, "id" | "createdAt">;
+export type SobaDraft = Omit<SobaRecord, "id" | "createdAt" | "updatedAt">;

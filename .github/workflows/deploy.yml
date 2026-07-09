@@ -6,6 +6,7 @@ on:
     branches:
       - claude/soba-tracking-app-87oyqb
       - claude/sober-weight-tracker-improvements-krt5r1
+      - claude/data-persistence-recovery-t5rb86
   # 手動実行も可能にする
   workflow_dispatch:
 

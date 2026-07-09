@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SobaDraft, SobaRecord, Temperature } from "./types";
 import { createId, loadRecords, saveRecords } from "./storage";
+import { recordSobaDeletion } from "./lib/merge";
+import { DATA_UPDATED_EVENT } from "./lib/sync";
 import { useBackClose } from "./lib/backstack";
 import { groupByStore } from "./utils/stores";
 import { RecordCard } from "./components/RecordCard";
@@ -39,11 +41,17 @@ export default function SobaApp({ onHome }: SobaAppProps) {
 
   useEffect(() => {
     let alive = true;
-    loadRecords().then((r) => {
-      if (alive) setRecords(r);
-    });
+    const reload = () => {
+      loadRecords().then((r) => {
+        if (alive) setRecords(r);
+      });
+    };
+    reload();
+    // GitHub同期などでデータが書き換わったら読み直す
+    window.addEventListener(DATA_UPDATED_EVENT, reload);
     return () => {
       alive = false;
+      window.removeEventListener(DATA_UPDATED_EVENT, reload);
     };
   }, []);
 
@@ -53,21 +61,27 @@ export default function SobaApp({ onHome }: SobaAppProps) {
   };
 
   const handleCreate = (draft: SobaDraft) => {
+    const now = new Date().toISOString();
     const record: SobaRecord = {
       ...draft,
       id: createId(),
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
     persist([record, ...records]);
     setView({ name: "detail", id: record.id });
   };
 
   const handleUpdate = (id: string, draft: SobaDraft) => {
-    persist(records.map((r) => (r.id === id ? { ...r, ...draft } : r)));
+    const now = new Date().toISOString();
+    persist(
+      records.map((r) => (r.id === id ? { ...r, ...draft, updatedAt: now } : r)),
+    );
     setView({ name: "detail", id });
   };
 
   const handleDelete = (id: string) => {
+    void recordSobaDeletion(id); // 同期先でも復活しないよう削除を記録
     persist(records.filter((r) => r.id !== id));
     setView({ name: "main" });
   };
@@ -118,9 +132,10 @@ export default function SobaApp({ onHome }: SobaAppProps) {
   if (view.name === "edit") {
     const rec = findRecord(view.id);
     if (!rec) return <Shell>{notFound(() => setView({ name: "main" }))}</Shell>;
-    const { id, createdAt, ...draft } = rec;
+    const { id, createdAt, updatedAt, ...draft } = rec;
     void id;
     void createdAt;
+    void updatedAt;
     return (
       <Shell>
         <RecordForm

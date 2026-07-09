@@ -6,10 +6,27 @@
 //   - 読み込み時に localStorage と IndexedDB を突き合わせ、
 //     データの多い方を採用して両方を同期（＝自動復元）
 //   - navigator.storage.persist() で消去されにくくするよう依頼
-// これにより、片方が消えても、もう片方から自動で復旧できる。
+//   - 記録データは日次スナップショットを IndexedDB に残す（操作ミスからの復元用）
+// ただし localStorage も IndexedDB も同じブラウザ領域なので、OS が領域ごと
+// 消すと両方消える。その根本対策は GitHub 同期（lib/sync.ts）が担う。
+
+import { todayStr } from "./date";
 
 const DB_NAME = "kirokunote";
 const STORE = "kv";
+
+/** 日次スナップショットを残す対象（記録データ本体のみ） */
+const SNAPSHOT_KEYS = new Set(["soba-records-v1", "life-records-v1"]);
+const SNAPSHOT_KEEP = 10; // キーごとに保持する日数ぶん
+const SNAP_PREFIX = "snap:";
+
+// データ変更の通知先（同期レイヤーが登録する）
+let changeListener: ((key: string) => void) | null = null;
+
+/** 配列データが保存されたときに呼ばれるリスナーを登録する（1つだけ） */
+export function setDataChangeListener(fn: ((key: string) => void) | null): void {
+  changeListener = fn;
+}
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -57,6 +74,35 @@ async function idbSet(key: string, val: unknown): Promise<void> {
     });
   } catch {
     /* IndexedDB が使えない環境では無視 */
+  }
+}
+
+async function idbDelete(key: string): Promise<void> {
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch {
+    /* 無視 */
+  }
+}
+
+async function idbKeys(): Promise<string[]> {
+  try {
+    const db = await getDB();
+    return await new Promise<string[]>((resolve) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = () =>
+        resolve((req.result ?? []).filter((k): k is string => typeof k === "string"));
+      req.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
   }
 }
 
@@ -142,4 +188,132 @@ export async function saveArray<T>(key: string, data: T[]): Promise<void> {
       `localStorage への保存に失敗（容量超過など）。IndexedDB には保存しました: ${key}`,
     );
   }
+  if (SNAPSHOT_KEYS.has(key) && data.length > 0) {
+    void writeSnapshot(key, data);
+  }
+  changeListener?.(key);
+}
+
+/* ===== オブジェクト（設定など）の保存 ===== */
+
+/** オブジェクトを読み込む（localStorage 優先、無ければ IndexedDB） */
+export async function loadObject<T>(key: string): Promise<T | null> {
+  const raw = lsGetRaw(key);
+  if (raw != null) {
+    try {
+      const v = JSON.parse(raw);
+      if (v && typeof v === "object") return v as T;
+    } catch {
+      /* 壊れていたら IndexedDB へフォールバック */
+    }
+  }
+  const idb = await idbGet<T>(key);
+  if (idb && typeof idb === "object") {
+    // localStorage 側が消えていたら復元しておく
+    if (raw == null) lsWrite(key, idb);
+    return idb;
+  }
+  return null;
+}
+
+/** オブジェクトを保存する（null で削除） */
+export async function saveObject(key: string, val: unknown | null): Promise<void> {
+  if (val == null) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* 無視 */
+    }
+    await idbDelete(key);
+    return;
+  }
+  lsWrite(key, val);
+  await idbSet(key, val);
+}
+
+/* ===== 日次スナップショット（操作ミス・不具合からの復元用） ===== */
+
+export interface SnapshotInfo {
+  /** 元データのキー（soba-records-v1 など） */
+  storageKey: string;
+  /** スナップショットの日付（YYYY-MM-DD） */
+  date: string;
+  /** 件数 */
+  count: number;
+}
+
+async function writeSnapshot(key: string, data: unknown[]): Promise<void> {
+  const snapKey = `${SNAP_PREFIX}${key}:${todayStr()}`;
+  await idbSet(snapKey, data);
+  // 古いスナップショットを間引く
+  const prefix = `${SNAP_PREFIX}${key}:`;
+  const keys = (await idbKeys()).filter((k) => k.startsWith(prefix)).sort();
+  for (const k of keys.slice(0, Math.max(0, keys.length - SNAPSHOT_KEEP))) {
+    await idbDelete(k);
+  }
+}
+
+/** 保存されているスナップショットの一覧（新しい順） */
+export async function listSnapshots(): Promise<SnapshotInfo[]> {
+  const keys = (await idbKeys()).filter((k) => k.startsWith(SNAP_PREFIX));
+  const out: SnapshotInfo[] = [];
+  for (const k of keys) {
+    const rest = k.slice(SNAP_PREFIX.length);
+    const i = rest.lastIndexOf(":");
+    if (i === -1) continue;
+    const data = await idbGet<unknown[]>(k);
+    out.push({
+      storageKey: rest.slice(0, i),
+      date: rest.slice(i + 1),
+      count: Array.isArray(data) ? data.length : 0,
+    });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** スナップショットの中身を読む */
+export async function readSnapshot(
+  storageKey: string,
+  date: string,
+): Promise<unknown[] | null> {
+  const data = await idbGet<unknown[]>(`${SNAP_PREFIX}${storageKey}:${date}`);
+  return Array.isArray(data) ? data : null;
+}
+
+/* ===== 保存状態の診断（データ救出画面用） ===== */
+
+export interface StorageReport {
+  /** ブラウザが「保存領域を消さない」と約束しているか */
+  persisted: boolean | null;
+  usage: number | null;
+  quota: number | null;
+  /** キーごとの localStorage / IndexedDB の件数 */
+  keys: { key: string; ls: number | null; idb: number | null }[];
+}
+
+export async function storageReport(keys: string[]): Promise<StorageReport> {
+  let persisted: boolean | null = null;
+  let usage: number | null = null;
+  let quota: number | null = null;
+  try {
+    if (navigator.storage?.persisted) persisted = await navigator.storage.persisted();
+    if (navigator.storage?.estimate) {
+      const est = await navigator.storage.estimate();
+      usage = est.usage ?? null;
+      quota = est.quota ?? null;
+    }
+  } catch {
+    /* 診断できない環境では null のまま */
+  }
+  const rows: StorageReport["keys"] = [];
+  for (const key of keys) {
+    const ls = lsParse<unknown>(lsGetRaw(key));
+    const idb = await idbGet<unknown[]>(key);
+    rows.push({
+      key,
+      ls: ls ? ls.length : null,
+      idb: Array.isArray(idb) ? idb.length : null,
+    });
+  }
+  return { persisted, usage, quota, keys: rows };
 }

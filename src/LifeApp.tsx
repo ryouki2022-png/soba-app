@@ -3,6 +3,8 @@ import type { LifeRecord, MealSlot } from "./life/types";
 import { MEAL_SLOTS, emptyMeals, outsideCount } from "./life/types";
 import { loadLife, roundWeight, saveLife, upsertLife } from "./life/storage";
 import { exportLifeCsv } from "./life/exportCsv";
+import { recordLifeDeletion } from "./lib/merge";
+import { DATA_UPDATED_EVENT } from "./lib/sync";
 import { loadRecords as loadSoba } from "./storage";
 import type { SobaRecord } from "./types";
 import { LineChart } from "./charts/LineChart";
@@ -56,10 +58,16 @@ export default function LifeApp({ onHome }: LifeAppProps) {
 
   useEffect(() => {
     let alive = true;
-    loadLife().then((r) => alive && setRecords(r));
-    loadSoba().then((r) => alive && setSoba(r));
+    const reload = () => {
+      loadLife().then((r) => alive && setRecords(r));
+      loadSoba().then((r) => alive && setSoba(r));
+    };
+    reload();
+    // GitHub同期などでデータが書き換わったら読み直す
+    window.addEventListener(DATA_UPDATED_EVENT, reload);
     return () => {
       alive = false;
+      window.removeEventListener(DATA_UPDATED_EVENT, reload);
     };
   }, []);
 
@@ -118,6 +126,7 @@ export default function LifeApp({ onHome }: LifeAppProps) {
 
   const handleDelete = (d: string) => {
     if (!confirm(`${d} の記録を削除しますか？`)) return;
+    void recordLifeDeletion(d); // 同期先でも復活しないよう削除を記録
     persist(records.filter((r) => r.date !== d));
   };
 
