@@ -1853,3 +1853,21 @@ body {
   padding: 6px 10px;
   font-size: 12px;
 }
+
+/* 同期エラー時のバナー（気づかず放置を防ぐ） */
+.sync-banner--error {
+  border-color: #d89090;
+  background: #fbe9e7;
+  color: #9c3b2e;
+}
+
+/* iOS: ホーム画面に追加の案内 */
+.ios-tip {
+  margin: 10px 2px 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+.ios-tip strong {
+  color: var(--hot);
+}

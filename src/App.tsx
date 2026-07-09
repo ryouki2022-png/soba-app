@@ -10,9 +10,21 @@ import { useBackClose } from "./lib/backstack";
 
 type Mode = "home" | "soba" | "life" | "sync";
 
+// iPhone の Safari でそのまま使っていると、7日間未使用で保存データが
+// 削除される。ホーム画面に追加したアプリはこの削除の対象外なので案内する。
+function isIOSBrowserNotInstalled(): boolean {
+  const ua = navigator.userAgent;
+  const isIOS = /iP(hone|ad|od)/.test(ua);
+  const standalone =
+    (navigator as { standalone?: boolean }).standalone === true ||
+    (typeof matchMedia !== "undefined" &&
+      matchMedia("(display-mode: standalone)").matches);
+  return isIOS && !standalone;
+}
+
 export default function App() {
   const [mode, setMode] = useState<Mode>("home");
-  const [syncOn, setSyncOn] = useState(getSyncState().configured);
+  const [sync, setSync] = useState(getSyncState());
   const fileRef = useRef<HTMLInputElement>(null);
 
   // スマホの「戻る」ボタンでアプリが閉じずにホームへ戻れるように
@@ -22,7 +34,7 @@ export default function App() {
   useEffect(() => {
     requestPersistentStorage();
     void initSync();
-    return subscribeSync((s) => setSyncOn(s.configured));
+    return subscribeSync(setSync);
   }, []);
 
   const handleRestore = async (file: File | undefined) => {
@@ -88,13 +100,29 @@ export default function App() {
 
         <button
           type="button"
-          className={`sync-banner${syncOn ? " sync-banner--on" : ""}`}
+          className={`sync-banner${
+            !sync.configured
+              ? ""
+              : sync.phase === "error"
+                ? " sync-banner--error"
+                : " sync-banner--on"
+          }`}
           onClick={() => setMode("sync")}
         >
-          {syncOn
-            ? "☁️ 同期オン — データは GitHub に自動保存されています"
-            : "⚠️ 同期がオフです — タップして設定するとデータが消えなくなります"}
+          {!sync.configured
+            ? "⚠️ 同期がオフです — タップして設定するとデータが消えなくなります"
+            : sync.phase === "error"
+              ? "🚨 同期が止まっています — タップして確認してください"
+              : "☁️ 同期オン — データは GitHub に自動保存されています"}
         </button>
+
+        {isIOSBrowserNotInstalled() && (
+          <p className="ios-tip">
+            📲 iPhoneのSafariでそのまま使うと、<strong>7日間開かないだけで</strong>
+            端末内のデータが削除されます。共有ボタン →
+            「ホーム画面に追加」から使うと削除の対象外になります。
+          </p>
+        )}
 
         <div className="launcher__backup">
           <button type="button" className="launcher__bkbtn" onClick={() => exportAllData()}>

@@ -29,7 +29,9 @@ const CONFIG_KEY = "kirokunote-sync-config-v1";
 const STATUS_KEY = "kirokunote-sync-status-v1";
 const FILE_PATH = "kiroku-data.json";
 const WATCHED_KEYS = new Set([SOBA_KEY, LIFE_KEY, SOBA_DELETED_KEY, LIFE_DELETED_KEY]);
-const DEBOUNCE_MS = 2500;
+const DEBOUNCE_MS = 1500;
+/** 画面復帰時、前回同期からこれ以上経っていたら同期し直す */
+const REFRESH_MS = 60 * 1000;
 
 /** データが同期などで書き換わったときに画面へ知らせるイベント名 */
 export const DATA_UPDATED_EVENT = "kirokunote:data-updated";
@@ -98,6 +100,33 @@ export async function initSync(): Promise<void> {
   initialized = true;
   setDataChangeListener((key) => {
     if (!applying && WATCHED_KEYS.has(key)) scheduleSync();
+  });
+  // 取りこぼし防止:
+  //  - アプリを閉じる/切り替える瞬間: 待機中の同期を即座に実行
+  //  - 画面へ戻ってきたとき: しばらく同期していなければ同期し直す
+  //  - オフラインから復帰したとき: すぐ同期
+  window.addEventListener("visibilitychange", () => {
+    if (!config) return;
+    if (document.visibilityState === "hidden") {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+        void syncNow();
+      }
+    } else if (document.visibilityState === "visible") {
+      const last = state.lastSyncAt ? Date.parse(state.lastSyncAt) : 0;
+      if (Date.now() - last > REFRESH_MS) void syncNow();
+    }
+  });
+  window.addEventListener("pagehide", () => {
+    if (config && timer) {
+      clearTimeout(timer);
+      timer = null;
+      void syncNow();
+    }
+  });
+  window.addEventListener("online", () => {
+    if (config) void syncNow();
   });
   config = await loadObject<SyncConfig>(CONFIG_KEY);
   const status = await loadObject<{ lastSyncAt?: string }>(STATUS_KEY);
