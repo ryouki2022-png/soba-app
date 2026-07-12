@@ -112,7 +112,7 @@ export default function App() {
             ? ""
             : sync.phase === "error" || (daysLeft != null && daysLeft <= 0)
               ? " sync-banner--error"
-              : daysLeft != null && daysLeft <= 21
+              : (daysLeft != null && daysLeft <= 21) || !sync.linkSaved
                 ? ""
                 : " sync-banner--on";
           const label = !sync.configured
@@ -123,7 +123,9 @@ export default function App() {
                 ? "🔑 トークンの有効期限が切れました — タップして作り直してください"
                 : daysLeft != null && daysLeft <= 21
                   ? `🔑 トークンの期限まであと${daysLeft}日 — 早めに作り直しましょう`
-                  : "☁️ 同期オン — データは GitHub に自動保存されています";
+                  : !sync.linkSaved
+                    ? "🔗 復元リンクが未保存です — タップして保存（もしもの時に1タップで復活）"
+                    : "☁️ 同期オン — データは GitHub に自動保存されています";
           return (
             <button type="button" className={`sync-banner${cls}`} onClick={() => setMode("sync")}>
               {label}

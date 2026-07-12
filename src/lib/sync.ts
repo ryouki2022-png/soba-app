@@ -27,6 +27,7 @@ import {
 
 const CONFIG_KEY = "kirokunote-sync-config-v1";
 const STATUS_KEY = "kirokunote-sync-status-v1";
+const LINK_SAVED_KEY = "kirokunote-synclink-saved-v1";
 const FILE_PATH = "kiroku-data.json";
 const WATCHED_KEYS = new Set([SOBA_KEY, LIFE_KEY, SOBA_DELETED_KEY, LIFE_DELETED_KEY]);
 const DEBOUNCE_MS = 1500;
@@ -51,6 +52,8 @@ export interface SyncState {
   repo: string;
   branch: string;
   tokenExpiresAt: string | null;
+  /** 復元リンクを保存（コピー/共有）済みか。未保存ならホームで促す */
+  linkSaved: boolean;
   phase: "off" | "idle" | "syncing" | "error";
   lastSyncAt: string | null;
   error: string | null;
@@ -78,6 +81,7 @@ let state: SyncState = {
   repo: "",
   branch: "",
   tokenExpiresAt: null,
+  linkSaved: false,
   phase: "off",
   lastSyncAt: null,
   error: null,
@@ -181,6 +185,7 @@ export async function initSync(): Promise<void> {
 
   // 復元リンク（#sync=…）で開かれた場合は、リンク内の設定を取り込む。
   // ブラウザのデータが消えても、リンクを開くだけで同期（＝自動復元）が復活する。
+  let viaLink = false;
   const linked = parseRecoveryHash(location.hash);
   if (linked) {
     // トークンが画面に残らないよう、URL からはすぐ消す
@@ -190,17 +195,22 @@ export async function initSync(): Promise<void> {
       // 接続確認に通ったら採用。失敗しても、他に設定が無ければ入れておく
       // （エラー内容はホームのバナーと同期画面に表示される）
       config = linked;
+      viaLink = true;
       await saveObject(CONFIG_KEY, linked);
+      // リンクから復元できた＝リンクは手元にあるので、「保存して」の案内は不要
+      await saveObject(LINK_SAVED_KEY, { savedAt: new Date().toISOString() });
     }
   }
 
   const status = await loadObject<{ lastSyncAt?: string }>(STATUS_KEY);
+  const linkSaved = viaLink || !!(await loadObject<{ savedAt?: string }>(LINK_SAVED_KEY));
   setState({
     configured: !!config,
     owner: config?.owner ?? "",
     repo: config?.repo ?? "",
     branch: config?.branch ?? "",
     tokenExpiresAt: config?.tokenExpiresAt ?? null,
+    linkSaved,
     phase: config ? "idle" : "off",
     lastSyncAt: status?.lastSyncAt ?? null,
   });
@@ -211,15 +221,24 @@ export async function initSync(): Promise<void> {
 export async function setSyncConfig(next: SyncConfig | null): Promise<void> {
   config = next;
   await saveObject(CONFIG_KEY, next);
+  // 設定が変わると古い復元リンクは使えなくなるので、「保存済み」も一度リセットする
+  await saveObject(LINK_SAVED_KEY, null);
   setState({
     configured: !!next,
     owner: next?.owner ?? "",
     repo: next?.repo ?? "",
     branch: next?.branch ?? "",
     tokenExpiresAt: next?.tokenExpiresAt ?? null,
+    linkSaved: false,
     phase: next ? "idle" : "off",
     error: null,
   });
+}
+
+/** 復元リンクをコピー/共有できたら呼ぶ（ホームの「未保存」案内を消す） */
+export async function markRecoveryLinkSaved(): Promise<void> {
+  await saveObject(LINK_SAVED_KEY, { savedAt: new Date().toISOString() });
+  setState({ linkSaved: true });
 }
 
 function scheduleSync(): void {

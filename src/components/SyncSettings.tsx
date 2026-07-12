@@ -7,6 +7,7 @@ import {
   buildRecoveryLink,
   getSyncConfig,
   getSyncState,
+  markRecoveryLinkSaved,
   setSyncConfig,
   subscribeSync,
   syncNow,
@@ -100,16 +101,36 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
     storageReport([SOBA_KEY, LIFE_KEY, LEGACY_WEIGHT_KEY]).then(setReport);
   };
 
+  const handleShareRecoveryLink = async () => {
+    const cfg = getSyncConfig();
+    if (!cfg) return;
+    const link = buildRecoveryLink(cfg);
+    // iPhone なら共有シートから「メモ」へ直接保存できる
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "きろくノート 復元リンク", text: link });
+        await markRecoveryLinkSaved();
+        setLinkMsg("✅ 共有しました。保存先（メモなど）に残っているか確認してください。");
+        return;
+      } catch {
+        return; // キャンセル時は何もしない
+      }
+    }
+    await handleCopyRecoveryLink();
+  };
+
   const handleCopyRecoveryLink = async () => {
     const cfg = getSyncConfig();
     if (!cfg) return;
     const link = buildRecoveryLink(cfg);
     try {
       await navigator.clipboard.writeText(link);
+      await markRecoveryLinkSaved();
       setLinkMsg("✅ コピーしました。スマホの「メモ」などパスワードと同じ扱いの場所に貼り付けて保存してください。");
     } catch {
       // クリップボードが使えない環境では手動コピー用に表示する
       prompt("このリンクをコピーして、メモなどに保存してください", link);
+      await markRecoveryLinkSaved();
       setLinkMsg(null);
     }
   };
@@ -196,7 +217,9 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
               </button>
             </div>
 
-            <h3 className="sync-subtitle">🔗 復元リンク（もしもの備え・おすすめ）</h3>
+            <h3 className="sync-subtitle">
+              🔗 復元リンク{sync.linkSaved ? "（保存済み ✅）" : "（未保存 — あと1タップ！）"}
+            </h3>
             <p className="sync-note sync-note--small">
               ブラウザのデータが丸ごと消えても、<strong>このリンクを一度開くだけ</strong>で
               同期設定が復活し、記録も GitHub から自動で戻ります。
@@ -204,8 +227,11 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
               スマホの「メモ」やパスワード管理アプリに保存しておいてください。
             </p>
             <div className="sync-actions">
+              <button type="button" className="btn btn--primary" onClick={handleShareRecoveryLink}>
+                📤 復元リンクを共有（メモに保存）
+              </button>
               <button type="button" className="btn btn--ghost" onClick={handleCopyRecoveryLink}>
-                📋 復元リンクをコピー
+                📋 コピー
               </button>
             </div>
             {linkMsg && <p className="sync-msg">{linkMsg}</p>}
