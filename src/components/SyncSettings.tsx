@@ -4,6 +4,8 @@
 
 import { useEffect, useState } from "react";
 import {
+  buildRecoveryLink,
+  getSyncConfig,
   getSyncState,
   setSyncConfig,
   subscribeSync,
@@ -40,6 +42,8 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
   const [repo, setRepo] = useState(sync.repo || "kiroku-data");
   const [branch, setBranch] = useState(sync.branch || "main");
   const [token, setToken] = useState("");
+  const [expires, setExpires] = useState(sync.tokenExpiresAt ?? "");
+  const [linkMsg, setLinkMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [formMsg, setFormMsg] = useState<string | null>(null);
   const [report, setReport] = useState<StorageReport | null>(null);
@@ -58,6 +62,7 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
       repo: repo.trim(),
       branch: branch.trim() || "main",
       token: token.trim(),
+      tokenExpiresAt: expires || undefined,
     };
     if (!cfg.owner || !cfg.repo || !cfg.token) {
       setFormMsg("ユーザー名・リポジトリ名・トークンをすべて入力してください");
@@ -93,6 +98,20 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
     setBusy(false);
     setFormMsg(result.ok ? `✅ ${result.message}` : `❌ ${result.message}`);
     storageReport([SOBA_KEY, LIFE_KEY, LEGACY_WEIGHT_KEY]).then(setReport);
+  };
+
+  const handleCopyRecoveryLink = async () => {
+    const cfg = getSyncConfig();
+    if (!cfg) return;
+    const link = buildRecoveryLink(cfg);
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkMsg("✅ コピーしました。スマホの「メモ」などパスワードと同じ扱いの場所に貼り付けて保存してください。");
+    } catch {
+      // クリップボードが使えない環境では手動コピー用に表示する
+      prompt("このリンクをコピーして、メモなどに保存してください", link);
+      setLinkMsg(null);
+    }
   };
 
   const handleRestoreSnapshot = async (s: SnapshotInfo) => {
@@ -176,6 +195,20 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
                 同期を解除
               </button>
             </div>
+
+            <h3 className="sync-subtitle">🔗 復元リンク（もしもの備え・おすすめ）</h3>
+            <p className="sync-note sync-note--small">
+              ブラウザのデータが丸ごと消えても、<strong>このリンクを一度開くだけ</strong>で
+              同期設定が復活し、記録も GitHub から自動で戻ります。
+              トークンが入っているので<strong>パスワードと同じ扱い</strong>で、
+              スマホの「メモ」やパスワード管理アプリに保存しておいてください。
+            </p>
+            <div className="sync-actions">
+              <button type="button" className="btn btn--ghost" onClick={handleCopyRecoveryLink}>
+                📋 復元リンクをコピー
+              </button>
+            </div>
+            {linkMsg && <p className="sync-msg">{linkMsg}</p>}
           </>
         ) : (
           <>
@@ -183,10 +216,12 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
               <summary>はじめての設定手順（3ステップ・5分）</summary>
               <ol className="sync-guide__steps">
                 <li>
+                  リポジトリを用意する。<strong>すでに <code>kiroku-data</code> を作ってあれば、この手順は飛ばしてOK</strong>
+                  （過去に同期していたデータもそのまま復元されます）。まだ無ければ{" "}
                   <a href="https://github.com/new" target="_blank" rel="noreferrer">
                     github.com/new
                   </a>{" "}
-                  でリポジトリを作る。名前は <code>kiroku-data</code>、
+                  で作成。名前は <code>kiroku-data</code>、
                   <strong>必ず「Private」を選ぶ</strong>（Public だと記録が誰でも見えてしまいます）。
                   「Add a README file」にもチェック。
                 </li>
@@ -200,13 +235,21 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
                   </a>{" "}
                   でアクセストークンを作る。
                   <ul>
-                    <li>Expiration（期限）: いちばん長いもの</li>
+                    <li>
+                      Expiration（期限）: <strong>いちばん長いもの（Custom で1年後など）</strong>。
+                      選んだ期限の日付を、下の「トークンの有効期限」欄にも入れておくと、
+                      切れる前にホーム画面でお知らせします
+                    </li>
                     <li>Repository access: 「Only select repositories」→ <code>kiroku-data</code> だけを選ぶ</li>
                     <li>Permissions → Repository permissions → <strong>Contents: Read and write</strong></li>
                   </ul>
                   作成後に表示される <code>github_pat_…</code> をコピー。
                 </li>
                 <li>下の欄に貼り付けて「保存して同期を開始」。</li>
+                <li>
+                  保存できたら、表示される<strong>「🔗 復元リンク」をコピーしてメモに保存</strong>。
+                  次からはデータが消えてもリンクを開くだけで復活します。
+                </li>
               </ol>
             </details>
 
@@ -251,6 +294,17 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
                 placeholder="github_pat_…"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">
+                トークンの有効期限（任意・切れる前にホームでお知らせ）
+              </span>
+              <input
+                type="date"
+                className="field__input"
+                value={expires}
+                onChange={(e) => setExpires(e.target.value)}
               />
             </label>
             {formMsg && <p className="sync-msg">{formMsg}</p>}

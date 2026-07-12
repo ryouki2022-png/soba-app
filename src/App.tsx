@@ -22,6 +22,14 @@ function isIOSBrowserNotInstalled(): boolean {
   return isIOS && !standalone;
 }
 
+// トークンの有効期限までの残り日数（期限未登録なら null）
+function tokenDaysLeft(expiresAt: string | null): number | null {
+  if (!expiresAt) return null;
+  const end = Date.parse(`${expiresAt}T23:59:59`);
+  if (Number.isNaN(end)) return null;
+  return Math.ceil((end - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
 export default function App() {
   const [mode, setMode] = useState<Mode>("home");
   const [sync, setSync] = useState(getSyncState());
@@ -98,23 +106,30 @@ export default function App() {
           <span className="launch-card__arrow">→</span>
         </button>
 
-        <button
-          type="button"
-          className={`sync-banner${
-            !sync.configured
-              ? ""
-              : sync.phase === "error"
-                ? " sync-banner--error"
-                : " sync-banner--on"
-          }`}
-          onClick={() => setMode("sync")}
-        >
-          {!sync.configured
+        {(() => {
+          const daysLeft = tokenDaysLeft(sync.configured ? sync.tokenExpiresAt : null);
+          const cls = !sync.configured
+            ? ""
+            : sync.phase === "error" || (daysLeft != null && daysLeft <= 0)
+              ? " sync-banner--error"
+              : daysLeft != null && daysLeft <= 21
+                ? ""
+                : " sync-banner--on";
+          const label = !sync.configured
             ? "⚠️ 同期がオフです — タップして設定するとデータが消えなくなります"
             : sync.phase === "error"
               ? "🚨 同期が止まっています — タップして確認してください"
-              : "☁️ 同期オン — データは GitHub に自動保存されています"}
-        </button>
+              : daysLeft != null && daysLeft <= 0
+                ? "🔑 トークンの有効期限が切れました — タップして作り直してください"
+                : daysLeft != null && daysLeft <= 21
+                  ? `🔑 トークンの期限まであと${daysLeft}日 — 早めに作り直しましょう`
+                  : "☁️ 同期オン — データは GitHub に自動保存されています";
+          return (
+            <button type="button" className={`sync-banner${cls}`} onClick={() => setMode("sync")}>
+              {label}
+            </button>
+          );
+        })()}
 
         {isIOSBrowserNotInstalled() && (
           <p className="ios-tip">

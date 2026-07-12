@@ -41,6 +41,8 @@ export interface SyncConfig {
   repo: string;
   branch: string;
   token: string;
+  /** トークンの有効期限（YYYY-MM-DD、任意）。期限が近づくとホーム画面で知らせる */
+  tokenExpiresAt?: string;
 }
 
 export interface SyncState {
@@ -48,6 +50,7 @@ export interface SyncState {
   owner: string;
   repo: string;
   branch: string;
+  tokenExpiresAt: string | null;
   phase: "off" | "idle" | "syncing" | "error";
   lastSyncAt: string | null;
   error: string | null;
@@ -74,6 +77,7 @@ let state: SyncState = {
   owner: "",
   repo: "",
   branch: "",
+  tokenExpiresAt: null,
   phase: "off",
   lastSyncAt: null,
   error: null,
@@ -82,6 +86,51 @@ const listeners = new Set<(s: SyncState) => void>();
 
 export function getSyncState(): SyncState {
   return state;
+}
+
+/** 現在の同期設定（復元リンクの生成に使う）。未設定なら null */
+export function getSyncConfig(): SyncConfig | null {
+  return config;
+}
+
+/**
+ * 同期設定を丸ごと埋め込んだ「復元リンク」を作る。
+ * ブラウザのデータが全部消えても、このリンクを開くだけで同期設定が復活し、
+ * GitHub から記録が自動で戻ってくる。トークンが入っているので、
+ * パスワードと同じ扱いで保管してもらう（メモ帳・パスワード管理など）。
+ * トークンは URL のフラグメント（#以降）に入れるためサーバーへは送られない。
+ */
+export function buildRecoveryLink(cfg: SyncConfig): string {
+  const json = JSON.stringify({
+    o: cfg.owner,
+    r: cfg.repo,
+    b: cfg.branch,
+    t: cfg.token,
+    e: cfg.tokenExpiresAt ?? "",
+  });
+  const b64 = b64EncodeUtf8(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return `${location.origin}${location.pathname}#sync=${b64}`;
+}
+
+/** URL の #sync=… から同期設定を取り出す（復元リンクで開かれたとき用） */
+function parseRecoveryHash(hash: string): SyncConfig | null {
+  const m = /[#&]sync=([A-Za-z0-9_-]+)/.exec(hash);
+  if (!m) return null;
+  try {
+    const b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const p = JSON.parse(b64DecodeUtf8(padded));
+    if (!p || typeof p !== "object") return null;
+    const owner = typeof p.o === "string" ? p.o.trim() : "";
+    const repo = typeof p.r === "string" ? p.r.trim() : "";
+    const branch = typeof p.b === "string" && p.b.trim() ? p.b.trim() : "main";
+    const token = typeof p.t === "string" ? p.t.trim() : "";
+    const tokenExpiresAt = typeof p.e === "string" && p.e ? p.e : undefined;
+    if (!owner || !repo || !token) return null;
+    return { owner, repo, branch, token, tokenExpiresAt };
+  } catch {
+    return null;
+  }
 }
 
 export function subscribeSync(fn: (s: SyncState) => void): () => void {
@@ -129,12 +178,29 @@ export async function initSync(): Promise<void> {
     if (config) void syncNow();
   });
   config = await loadObject<SyncConfig>(CONFIG_KEY);
+
+  // 復元リンク（#sync=…）で開かれた場合は、リンク内の設定を取り込む。
+  // ブラウザのデータが消えても、リンクを開くだけで同期（＝自動復元）が復活する。
+  const linked = parseRecoveryHash(location.hash);
+  if (linked) {
+    // トークンが画面に残らないよう、URL からはすぐ消す
+    history.replaceState(null, "", location.pathname + location.search);
+    const test = await testSyncConfig(linked);
+    if (test.ok || !config) {
+      // 接続確認に通ったら採用。失敗しても、他に設定が無ければ入れておく
+      // （エラー内容はホームのバナーと同期画面に表示される）
+      config = linked;
+      await saveObject(CONFIG_KEY, linked);
+    }
+  }
+
   const status = await loadObject<{ lastSyncAt?: string }>(STATUS_KEY);
   setState({
     configured: !!config,
     owner: config?.owner ?? "",
     repo: config?.repo ?? "",
     branch: config?.branch ?? "",
+    tokenExpiresAt: config?.tokenExpiresAt ?? null,
     phase: config ? "idle" : "off",
     lastSyncAt: status?.lastSyncAt ?? null,
   });
@@ -150,6 +216,7 @@ export async function setSyncConfig(next: SyncConfig | null): Promise<void> {
     owner: next?.owner ?? "",
     repo: next?.repo ?? "",
     branch: next?.branch ?? "",
+    tokenExpiresAt: next?.tokenExpiresAt ?? null,
     phase: next ? "idle" : "off",
     error: null,
   });
