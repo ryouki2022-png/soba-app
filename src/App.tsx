@@ -134,11 +134,20 @@ export default function App() {
         })()}
 
         {isIOSBrowserNotInstalled() && (
-          <p className="ios-tip">
-            📲 iPhoneのSafariでそのまま使うと、<strong>7日間開かないだけで</strong>
-            端末内のデータが削除されます。共有ボタン →
-            「ホーム画面に追加」から使うと削除の対象外になります。
-          </p>
+          <div className="install-warn">
+            <p className="install-warn__title">
+              🚨 この開き方のままだと、データは<strong>7日ごとに消えます</strong>
+            </p>
+            <p className="install-warn__body">
+              iPhoneのSafariは「7日間使わないサイトのデータを全部消す」仕様のためです。
+              下の手順で<strong>ホーム画面に追加</strong>すると削除の対象外になり、消えなくなります（30秒）。
+            </p>
+            <ol className="install-warn__steps">
+              <li>画面下の<strong>共有ボタン</strong>（□から↑が出ているマーク）をタップ</li>
+              <li><strong>「ホーム画面に追加」</strong>を選んで「追加」</li>
+              <li>次からは<strong>ホーム画面の「きろくノート」アイコン</strong>から開く</li>
+            </ol>
+          </div>
         )}
 
         <div className="launcher__backup">

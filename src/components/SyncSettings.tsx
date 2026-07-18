@@ -225,6 +225,9 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
               同期設定が復活し、記録も GitHub から自動で戻ります。
               トークンが入っているので<strong>パスワードと同じ扱い</strong>で、
               スマホの「メモ」やパスワード管理アプリに保存しておいてください。
+              リンクを無くしたときは、github.com にログインして{" "}
+              <code>kiroku-data</code> リポジトリ内の <code>recovery-link.md</code>{" "}
+              を開くと同じリンクがあります（保管してある場合）。
             </p>
             <div className="sync-actions">
               <button type="button" className="btn btn--primary" onClick={handleShareRecoveryLink}>
