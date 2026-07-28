@@ -4,10 +4,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
+      # Pages 環境の保護設定でデプロイが許可されているのはこのブランチだけ。
+      # 他ブランチを並べると、失敗する実行が正常な実行をキャンセルしてしまう
+      # （concurrency: pages, cancel-in-progress）ため、ここには足さないこと。
       - claude/soba-tracking-app-87oyqb
-      - claude/sober-weight-tracker-improvements-krt5r1
-      - claude/data-persistence-recovery-t5rb86
-      - claude/repo-sync-backup-recovery-anoa4r
   # 手動実行も可能にする
   workflow_dispatch:
 
