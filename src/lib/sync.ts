@@ -29,6 +29,10 @@ const CONFIG_KEY = "kirokunote-sync-config-v1";
 const STATUS_KEY = "kirokunote-sync-status-v1";
 const LINK_SAVED_KEY = "kirokunote-synclink-saved-v1";
 const FILE_PATH = "kiroku-data.json";
+/** 生存信号ファイル。記録が増えなくても「同期は生きている」ことを外から確認できる */
+const HEARTBEAT_PATH = "heartbeat.json";
+/** 生存信号を書く間隔（これより最近書いていたら書かない） */
+const HEARTBEAT_MS = 6 * 24 * 60 * 60 * 1000;
 const WATCHED_KEYS = new Set([SOBA_KEY, LIFE_KEY, SOBA_DELETED_KEY, LIFE_DELETED_KEY]);
 const DEBOUNCE_MS = 1500;
 /** 画面復帰時、前回同期からこれ以上経っていたら同期し直す */
@@ -352,6 +356,36 @@ async function pushRemote(cfg: SyncConfig, ds: DataSet, sha: string | null): Pro
   if (!res.ok) throw new Error(friendlyHttpError(res.status));
 }
 
+/**
+ * 生存信号を書き込む（失敗しても同期には影響させない）。
+ * 週1回 heartbeat.json を更新することで、見張り側が
+ * 「記録が増えていないだけ」と「同期が止まっている」を区別できる。
+ */
+async function pushHeartbeat(cfg: SyncConfig): Promise<void> {
+  const url = `https://api.github.com/repos/${encodeURIComponent(cfg.owner)}/${encodeURIComponent(cfg.repo)}/contents/${HEARTBEAT_PATH}`;
+  let sha: string | null = null;
+  const res = await fetch(`${url}?ref=${encodeURIComponent(cfg.branch)}`, {
+    headers: headers(cfg, "application/vnd.github.object+json"),
+  });
+  if (res.ok) {
+    const obj = await res.json();
+    sha = typeof obj.sha === "string" ? obj.sha : null;
+  } else if (res.status !== 404) {
+    return;
+  }
+  const body: Record<string, unknown> = {
+    message: "生存確認",
+    content: b64EncodeUtf8(JSON.stringify({ at: new Date().toISOString() })),
+    branch: cfg.branch,
+  };
+  if (sha) body.sha = sha;
+  await fetch(url, {
+    method: "PUT",
+    headers: headers(cfg, "application/vnd.github+json"),
+    body: JSON.stringify(body),
+  });
+}
+
 /* ===== 同期本体 ===== */
 
 /** 今すぐ同期する。設定済みならアプリ起動時・保存後にも自動で呼ばれる。 */
@@ -398,7 +432,13 @@ export async function syncNow(): Promise<SyncResult> {
       }
 
       const lastSyncAt = new Date().toISOString();
-      await saveObject(STATUS_KEY, { lastSyncAt });
+      const prev = await loadObject<{ lastHeartbeatAt?: string }>(STATUS_KEY);
+      let lastHeartbeatAt = prev?.lastHeartbeatAt ?? null;
+      if (!lastHeartbeatAt || Date.now() - Date.parse(lastHeartbeatAt) > HEARTBEAT_MS) {
+        pushHeartbeat(config).catch(() => {});
+        lastHeartbeatAt = lastSyncAt;
+      }
+      await saveObject(STATUS_KEY, { lastSyncAt, lastHeartbeatAt });
       setState({ phase: "idle", lastSyncAt, error: null });
       return {
         ok: true,
