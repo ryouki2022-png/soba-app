@@ -120,6 +120,15 @@ export function buildRecoveryLink(cfg: SyncConfig): string {
   return `${location.origin}${location.pathname}#sync=${b64}`;
 }
 
+/**
+ * 貼り付けられたテキスト（復元リンク全体など）から同期設定を取り出す。
+ * リンクをタップすると別ブラウザで開いてしまう iPhone でも、
+ * いつも使うアプリの中に「貼り付けて復元」できるようにするための入口。
+ */
+export function parseRecoveryText(text: string): SyncConfig | null {
+  return parseRecoveryHash(text);
+}
+
 /** URL の #sync=… から同期設定を取り出す（復元リンクで開かれたとき用） */
 function parseRecoveryHash(hash: string): SyncConfig | null {
   const m = /[#&]sync=([A-Za-z0-9_-]+)/.exec(hash);

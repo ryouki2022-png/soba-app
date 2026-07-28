@@ -8,6 +8,7 @@ import {
   getSyncConfig,
   getSyncState,
   markRecoveryLinkSaved,
+  parseRecoveryText,
   setSyncConfig,
   subscribeSync,
   syncNow,
@@ -58,7 +59,9 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
   }, []);
 
   const handleSave = async () => {
-    const cfg = {
+    // トークン欄に「復元リンク」を丸ごと貼った場合は、リンクから設定一式を取り出す
+    const linked = parseRecoveryText(token.trim());
+    const cfg = linked ?? {
       owner: owner.trim(),
       repo: repo.trim(),
       branch: branch.trim() || "main",
@@ -316,14 +319,19 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
               />
             </label>
             <label className="field">
-              <span className="field__label">アクセストークン</span>
+              <span className="field__label">
+                アクセストークン（🔗 復元リンクを丸ごと貼り付けてもOK）
+              </span>
               <input
                 type="password"
                 className="field__input"
-                placeholder="github_pat_…"
+                placeholder="github_pat_… または https://…#sync=…"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
+              <span className="field__hint">
+                メモに保存した復元リンクをそのまま貼れば、他の欄は入力不要です
+              </span>
             </label>
             <label className="field">
               <span className="field__label">
@@ -366,6 +374,14 @@ export function SyncSettings({ onBack }: SyncSettingsProps) {
           （Safari で直接 / ホーム画面のアイコン / 別のブラウザ）でこのアプリを開いてみてください。
           データが表示されたら、その画面で上の GitHub 同期をオンにすれば、
           どこから開いても同じデータが使えるようになります。
+        </p>
+
+        <h3 className="sync-subtitle">この画面の開き方</h3>
+        <p className="sync-note sync-note--small">
+          {(navigator as { standalone?: boolean }).standalone === true ||
+          (typeof matchMedia !== "undefined" && matchMedia("(display-mode: standalone)").matches)
+            ? "📱 ホーム画面アプリ ✅ — 自動削除されにくい、おすすめの開き方です"
+            : "🌐 ブラウザ（Safariなど）⚠️ — この開き方は7日間使わないとデータが消されます。ここで復元しても、いつも使う開き方と保存場所が別なら反映されません。いつも使う開き方でこの画面を開いて設定してください"}
         </p>
 
         <h3 className="sync-subtitle">この端末の保存状態</h3>
