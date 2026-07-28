@@ -1902,3 +1902,12 @@ body {
 .install-warn strong {
   color: #9c3b2e;
 }
+/* Android向け: 危険というより「推奨」の案内なので落ち着いた配色 */
+.install-warn--info {
+  border-color: #e8c88a;
+  background: #fdf3dd;
+  color: #6b5312;
+}
+.install-warn--info strong {
+  color: #7a5b18;
+}

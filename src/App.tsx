@@ -22,6 +22,15 @@ function isIOSBrowserNotInstalled(): boolean {
   return isIOS && !standalone;
 }
 
+// Android でブラウザ（またはただのショートカット）のまま使っている場合。
+// 「アプリをインストール」（WebAPK）にすると保存領域が保護されて消えにくくなる。
+function isAndroidBrowserNotInstalled(): boolean {
+  const isAndroid = /Android/.test(navigator.userAgent);
+  const standalone =
+    typeof matchMedia !== "undefined" && matchMedia("(display-mode: standalone)").matches;
+  return isAndroid && !standalone;
+}
+
 // トークンの有効期限までの残り日数（期限未登録なら null）
 function tokenDaysLeft(expiresAt: string | null): number | null {
   if (!expiresAt) return null;
@@ -132,6 +141,24 @@ export default function App() {
             </button>
           );
         })()}
+
+        {isAndroidBrowserNotInstalled() && (
+          <div className="install-warn install-warn--info">
+            <p className="install-warn__title">
+              📲 「アプリをインストール」すると、データが消えにくくなります
+            </p>
+            <p className="install-warn__body">
+              ブラウザやただのショートカットのまま使うと、ストレージ整理などで
+              データが消されることがあります。<strong>アプリとしてインストール</strong>
+              すると保存領域が保護されます（30秒）。
+            </p>
+            <ol className="install-warn__steps">
+              <li>Chromeの<strong>メニュー（⋮）</strong>をタップ</li>
+              <li><strong>「アプリをインストール」</strong>（または「ホーム画面に追加」→「インストール」）を選ぶ</li>
+              <li>今までのショートカットは削除し、<strong>新しい「きろくノート」アイコン</strong>から開く</li>
+            </ol>
+          </div>
+        )}
 
         {isIOSBrowserNotInstalled() && (
           <div className="install-warn">
